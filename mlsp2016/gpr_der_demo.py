@@ -3,6 +3,7 @@ import numpy as np
 import numpy.linalg as la
 from numpy import newaxis as na
 from scipy.linalg import cho_factor, cho_solve
+import matplotlib as mpl
 import matplotlib.pylab as plt
 from matplotlib.lines import Line2D
 
@@ -95,21 +96,39 @@ gp_mean_d = kfy_iK.dot(y)
 gp_var_d = np.diag(kss - kfy_iK.dot(kfy.T))
 gp_std_d = np.sqrt(gp_var_d)
 
-# plot ordinary GP regression fit
+# setup plotting
 fmin, fmax, fp2p = np.min(fx), np.max(fx), np.ptp(fx)
-plt.figure()
-
+axis_limits = [-3, 3, fmin - 0.2 * fp2p, fmax + 0.2 * fp2p]
+tick_settings = {'which': 'both', 'bottom': 'off', 'top': 'off', 'left': 'off', 'right': 'off', 'labelleft': 'off',
+                 'labelbottom': 'off'}
+# use tex to render text in the figure
+mpl.rc('text', usetex=True)
+# use lmodern font package which is also used in the paper
+mpl.rc('text.latex', preamble=['\usepackage{lmodern}'])
+# sans serif font for figure, size 10pt
+mpl.rc('font', family='sans-serif', size=10)
+plt.style.use('seaborn-paper')
+# set figure width to fit the column width of the article
+pti = 1.0 / 72.0
+fig_width_pt = 244
+golden_mean = (np.sqrt(5.0) - 1.0) / 2.0
+fig_w = fig_width_pt * pti * 1.0
+fig_h = fig_w * golden_mean
+plt.figure(figsize=(fig_w, fig_h))
+# plot ordinary GP regression fit
 plt.subplot(211)
-plt.axis([-3, 3, fmin - 0.2 * fp2p, fmax + 0.2 * fp2p])
-plt.title('GP fit w/o derivative observations')
+plt.axis(axis_limits)
+plt.tick_params(**tick_settings)
+plt.title('GP regression')
 plt.plot(xs, fx, 'r--', label='true')
 plt.plot(xtr, ytr, 'ko', ms=10, label='observed fcn values')
 plt.plot(xs, gp_mean, 'k-', lw=2, label='GP mean')
 plt.fill_between(xs, gp_mean - 2 * gp_std, gp_mean + 2 * gp_std, color='k', alpha=0.15)
 # plot GP regression fit w/ derivative observations
 plt.subplot(212)
-plt.axis([-3, 3, fmin - 0.2 * fp2p, fmax + 0.2 * fp2p])
-plt.title('GP fit w/ derivative observations')
+plt.axis(axis_limits)
+plt.tick_params(**tick_settings)
+plt.title('GP regression with gradient observations')
 plt.plot(xs, fx, 'r--', label='true')
 plt.plot(xtr, ytr, 'ko', ms=10, label='observed fcn values')
 plt.plot(xs, gp_mean_d, 'k-', lw=2, label='GP mean')
@@ -121,4 +140,11 @@ for i in range(len(dtr)):
     y0 = dtr[i] * (x0 - xtr[i]) + ytr[i]
     y1 = dtr[i] * (x1 - xtr[i]) + ytr[i]
     plt.gca().add_line(Line2D([x0, x1], [y0, y1], linewidth=6, color='k'))
+plt.tight_layout()
+plt.savefig('gpr_grad_compar.pdf', format='pdf')
 plt.show()
+
+
+# fig = plt.figure()
+# ax = fig.add_axes()
+# ax.add_subplot
