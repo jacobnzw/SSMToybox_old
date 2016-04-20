@@ -142,7 +142,39 @@ for i in range(len(dtr)):
     plt.gca().add_line(Line2D([x0, x1], [y0, y1], linewidth=6, color='k'))
 plt.tight_layout()
 plt.savefig('gpr_grad_compar.pdf', format='pdf')
-plt.show()
+
+# two figure version
+scale = 0.5
+fig_w = fig_width_pt * pti
+fig_h = fig_w * golden_mean * scale
+# plot ordinary GP regression fit
+plt.figure(figsize=(fig_w, fig_h))
+plt.axis(axis_limits)
+plt.tick_params(**tick_settings)
+plt.plot(xs, fx, 'r--', label='true')
+plt.plot(xtr, ytr, 'ko', ms=10, label='observed fcn values')
+plt.plot(xs, gp_mean, 'k-', lw=2, label='GP mean')
+plt.fill_between(xs, gp_mean - 2 * gp_std, gp_mean + 2 * gp_std, color='k', alpha=0.15)
+plt.tight_layout(pad=0.5)
+plt.savefig('gpr_fcn_obs.pdf', format='pdf')
+# plot GP regression fit w/ derivative observations
+plt.figure(figsize=(fig_w, fig_h))
+plt.axis(axis_limits)
+plt.tick_params(**tick_settings)
+plt.plot(xs, fx, 'r--', label='true')
+plt.plot(xtr, ytr, 'ko', ms=10, label='observed fcn values')
+plt.plot(xs, gp_mean_d, 'k-', lw=2, label='GP mean')
+plt.fill_between(xs, gp_mean_d - 2 * gp_std_d, gp_mean_d + 2 * gp_std_d, color='k', alpha=0.15)
+# plot line segments to indicate derivative observations
+h = 0.15
+for i in range(len(dtr)):
+    x0, x1 = xtr[i] - h, xtr[i] + h
+    y0 = dtr[i] * (x0 - xtr[i]) + ytr[i]
+    y1 = dtr[i] * (x1 - xtr[i]) + ytr[i]
+    plt.gca().add_line(Line2D([x0, x1], [y0, y1], linewidth=6, color='k'))
+plt.tight_layout(pad=0.5)
+plt.savefig('gpr_grad_obs.pdf', format='pdf')
+
 
 
 # fig = plt.figure()
