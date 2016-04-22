@@ -5,12 +5,14 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from numpy import newaxis as na
 from transforms.taylor import Taylor1stOrder, TaylorGPQD
-from transforms.quad import MonteCarlo, Unscented, GaussHermite
+from transforms.quad import MonteCarlo, Unscented, GaussHermite, SphericalRadial
 from transforms.bayesquad import GPQuad, GPQuadDerRBF
 from models.ungm import UNGM
 from scipy.stats import norm
+from numba import jit
 
-def sum_of_squares(x, pars, dx=False):
+
+def sos(x, pars, dx=False):
     """Sum of squares function.
 
     Parameters
@@ -21,10 +23,11 @@ def sum_of_squares(x, pars, dx=False):
     -------
 
     """
+    x = np.atleast_1d(x)
     if not dx:
-        return np.atleast_1d(x.T.dot(x))
+        return np.atleast_1d(np.sum(x ** 2, axis=0))
     else:
-        return np.atleast_1d(2 * x)
+        return np.atleast_1d(2 * x).T.flatten()
 
 
 def toa(x, pars, dx=False):
@@ -38,18 +41,19 @@ def toa(x, pars, dx=False):
     -------
 
     """
+    x = np.atleast_1d(x)
     if not dx:
-        return np.atleast_1d(x.T.dot(x) ** 0.5)
+        return np.atleast_1d(np.sum(x ** 2, axis=0) ** 0.5)
     else:
-        return np.atleast_1d(x * x.T.dot(x) ** (-0.5))
+        return np.atleast_1d(x * np.sum(x ** 2, axis=0) ** (-0.5)).T.flatten()
 
 
 def rss(x, pars, dx=False):
-    """Received signal strength in 2D in dB scale.
+    """Received signal strength in dB scale.
 
     Parameters
     ----------
-    x
+    x : N-D ndarray
 
     Returns
     -------
@@ -57,10 +61,11 @@ def rss(x, pars, dx=False):
     """
     c = 10
     b = 2
+    x = np.atleast_1d(x)
     if not dx:
-        return np.atleast_1d(c - b * 10 * np.log10(x.T.dot(x)))
+        return np.atleast_1d(c - b * 10 * np.log10(np.sum(x ** 2, axis=0)))
     else:
-        return np.atleast_1d(b * 10 * (2 / (x * np.log(10))))
+        return np.atleast_1d(-b * 20 / (x * np.log(10))).T.flatten()
 
 
 def doa(x, pars, dx=False):
@@ -68,8 +73,7 @@ def doa(x, pars, dx=False):
 
     Parameters
     ----------
-    x : real-valued scalar
-    y : real-valued scalar
+    x : 2-D ndarray
 
     Returns
     -------
@@ -78,15 +82,15 @@ def doa(x, pars, dx=False):
     if not dx:
         return np.atleast_1d(np.arctan2(x[1], x[0]))
     else:
-        return np.array([-x[1], x[0]]) / (x[0] ** 2 + x[1] ** 2)
+        return np.array([-x[1], x[0]]) / (x[0] ** 2 + x[1] ** 2).T.flatten()
 
 
-def radar(x, pars, dx=False):
-    """Radar measurements."""
+def rdr(x, pars, dx=False):
+    """Radar measurements in 2D."""
     if not dx:
         return x[0] * np.array([np.cos(x[1]), np.sin(x[1])])
     else:  # TODO: returned jacobian must be properly flattened, see dyn_eval in ssm
-        return np.array([[np.cos(x[1]), -x[0] * np.sin(x[1])], [np.sin(x[1]), x[0] * np.cos(x[1])]])
+        return np.array([[np.cos(x[1]), -x[0] * np.sin(x[1])], [np.sin(x[1]), x[0] * np.cos(x[1])]]).T.flatten()
 
 
 def kl_div(mu0, sig0, mu1, sig1):
@@ -163,75 +167,128 @@ def gpq_kl_demo():
     # input dimension
     d = 2
     # unit sigma-points
-    pts = Unscented.unit_sigma_points(d)
+    pts = SphericalRadial.unit_sigma_points(d)
     # derivative mask, which derivatives to use
     dmask = np.arange(pts.shape[1])
     # RBF kernel hyper-parameters
-    hyp = {'sig_var': 1.0, 'lengthscale': 10.0 * np.ones(d), 'noise_var': 1e-8}
-    hypd = {'sig_var': 1.0, 'lengthscale': 10.0 * np.ones(d), 'noise_var': 1e-8}
-    # tested moment trasforms
-    transforms = (
-        Unscented(d),
-        GPQuad(d, pts, hyp),
-        GPQuadDerRBF(d, pts, hypd, dmask),
-    )
+    hyp = {
+        'sos': {'sig_var': 10.0, 'lengthscale': 6.0 * np.ones(d), 'noise_var': 1e-8},
+        'rss': {'sig_var': 10.0, 'lengthscale': 0.25 * np.ones(d), 'noise_var': 1e-8},  # el=0.2, d=2
+        'toa': {'sig_var': 10.0, 'lengthscale': 3.0 * np.ones(d), 'noise_var': 1e-8},
+        'doa': {'sig_var': 1.0, 'lengthscale': 2.0 * np.ones(d), 'noise_var': 1e-8},  # al=2, np.array([2, 2])
+        'rdr': {'sig_var': 1.0, 'lengthscale': 5.0 * np.ones(d), 'noise_var': 1e-8},
+    }
     # baseline: Monte Carlo transform w/ 10,000 samples
     mc_baseline = MonteCarlo(d, n=1e4)
     # tested functions
-    test_functions = (sum_of_squares, toa,)
+    # rss has singularity at 0, therefore no derivative at 0
+    # toa does not have derivative at 0, for d = 1
+    # rss, toa and sos can be tested for all d > 0; physically d=2,3 make sense
+    # radar and doa only for d = 2
+    test_functions = (
+        sos, toa, rss, doa,
+        rdr,
+    )
     # moments of the input Gaussian density
-    mean = np.array([1, 0])  # np.zeros(d)
-    cov_samples = 25
+    mean = np.zeros(d)
+    cov_samples = 50
     # space allocation for KL divergence
-    kl_data = np.zeros((len(transforms), len(test_functions), cov_samples))
-    for idt, t in enumerate(transforms):
-        print "Testing {}".format(t.__class__.__name__)
+    kl_data = np.zeros((3, len(test_functions), cov_samples))
+    for i in range(cov_samples):
+        # random PD matrix
+        a = np.random.randn(d, d)
+        cov = a.dot(a.T)
+        a = np.diag(1.0 / np.sqrt(np.diag(cov)))  # 1 on diagonal
+        cov = a.dot(cov).dot(a.T)
         for idf, f in enumerate(test_functions):
-            for i in range(cov_samples):
-                # random PD matrix
-                a = np.random.randn(d, d)
-                cov = a.dot(a.T)
-                a = np.diag(1.0 / np.sqrt(np.diag(cov)))  # 1 on diagonal
-                cov = a.dot(cov).dot(a.T)
+            # print "Testing {}".format(f.__name__)
+            jitter = 1e-8 * np.eye(2) if f.__name__ == 'rdr' else 1e-8 * np.eye(1)
+            # tested moment trasforms
+            transforms = (
+                SphericalRadial(d),
+                GPQuad(d, pts, hyp[f.__name__]),
+                GPQuadDerRBF(d, pts, hyp[f.__name__], dmask),
+            )
+            mean[:d - 1] = 0.2 if f.__name__ in 'rss' else mean[:d - 1]
+            mean[:d - 1] = 3.0 if f.__name__ in 'doa' else mean[:d - 1]
+            for idt, t in enumerate(transforms):
                 # baseline moments using Monte Carlo
                 mean_mc, cov_mc, cc = mc_baseline.apply(f, mean, cov, None)
                 # apply transform
                 mean_t, cov_t, cc = t.apply(f, mean, cov, None)
-                kl_data[idt, idf, i] = kl_div_sym(mean_mc, cov_mc, mean_t, cov_t)
+                # calculate KL distance to the baseline moments
+                kl_data[idt, idf, i] = kl_div_sym(mean_mc, cov_mc + jitter, mean_t, cov_t + jitter)
     # average over MC samples
     kl_data = kl_data.mean(axis=2)
     # put into pandas dataframe for nice printing and latex output
     row_labels = [t.__class__.__name__ for t in transforms]
     col_labels = [f.__name__ for f in test_functions]
     kl_df = pd.DataFrame(kl_data, index=row_labels, columns=col_labels)
-    print kl_df
+    return kl_df
 
 
 def gpq_hypers_demo():
-    # input dimension
+    # input dimension, we can only plot d = 1
     d = 1
     # unit sigma-points
-    pts = Unscented.unit_sigma_points(d)
+    pts = SphericalRadial.unit_sigma_points(d)
+    # pts = Unscented.unit_sigma_points(d)
+    # pts = GaussHermite.unit_sigma_points(d, degree=5)
+    # shift the points away from the singularity
+    # pts += 3*np.ones(d)[:, na]
     # derivative mask, which derivatives to use
     dmask = np.arange(pts.shape[1])
+    # functions to test
+    test_functions = (sos, toa, rss,)
     # RBF kernel hyper-parameters
-    hyp = {'sig_var': 1.0, 'lengthscale': 6.0 * np.ones(d), 'noise_var': 1e-8}
-    #
-    t_toa = (
-        GPQuad(d, pts, hyp),
-        GPQuadDerRBF(d, pts, hyp, dmask),
-    )
-    hyp = {'sig_var': 1.0, 'lengthscale': 6.0 * np.ones(d), 'noise_var': 1e-8}
-    t_sos = (
-        GPQuad(d, pts, hyp),
-        GPQuadDerRBF(d, pts, hyp, dmask),
-    )
-    test_functions = (sum_of_squares, toa,)
-    # for t in t_sos:
-    #     t.plot_gp_model(sum_of_squares, pts, None)
-    for t in t_toa:
-        t.plot_gp_model(rss, pts, None)
+    hyp = {
+        'sos': {'sig_var': 10.0, 'lengthscale': 6.0 * np.ones(d), 'noise_var': 1e-8},
+        'rss': {'sig_var': 10.0, 'lengthscale': 1.0 * np.ones(d), 'noise_var': 1e-8},
+        'toa': {'sig_var': 10.0, 'lengthscale': 1.0 * np.ones(d), 'noise_var': 1e-8},
+    }
+    hypd = {
+        'sos': {'sig_var': 10.0, 'lengthscale': 6.0 * np.ones(d), 'noise_var': 1e-8},
+        'rss': {'sig_var': 10.0, 'lengthscale': 1.0 * np.ones(d), 'noise_var': 1e-8},
+        'toa': {'sig_var': 10.0, 'lengthscale': 1.0 * np.ones(d), 'noise_var': 1e-8},
+    }
+    # GP plots
+    # for f in test_functions:
+    #     # TODO: plot_gp_model can be made static
+    #     GPQuad(d, pts, hyp[f.__name__]).plot_gp_model(f, pts, None)
+    # GP plots with derivatives
+    for f in test_functions:
+        # TODO: plot_gp_model can be made static
+        GPQuadDerRBF(d, pts, hypd[f.__name__], dmask).plot_gp_model(f, pts, None)
 
 
-# gpq_hypers_demo()
-gpq_kl_demo()
+def plot_func(f, d, n=100, xrng=(-3, 3)):
+    xmin, xmax = xrng
+    x = np.linspace(xmin, xmax, n)
+    assert d <= 2, "Dimensions > 2 not supported. d={}".format(d)
+    if d > 1:
+        X, Y = np.meshgrid(x, x)
+        Z = np.zeros((n, n))
+        for i in range(n):
+            for j in range(n):
+                Z[i, j] = f([X[i, j], Y[i, j]], None)
+        fig = plt.figure()
+        ax = fig.add_subplot(111, projection='3d')
+        ax.plot_surface(X, Y, Z)
+        plt.show()
+    else:
+        y = np.zeros(n)
+        for i in range(n):
+            y[i] = f(x[i], None)
+        fig = plt.plot(x, y)
+        plt.show()
+    return fig
+
+
+# fig = plot_func(rss, 2, n=200)
+
+table = gpq_kl_demo()
+pd.set_option('display.float_format', '{:.2e}'.format)
+print table
+fo = open('kl_div_table.tex', 'w')
+table.to_latex(fo)
+fo.close()
