@@ -173,25 +173,28 @@ def gpq_kl_demo():
     # RBF kernel hyper-parameters
     hyp = {
         'sos': {'sig_var': 10.0, 'lengthscale': 6.0 * np.ones(d), 'noise_var': 1e-8},
-        'rss': {'sig_var': 10.0, 'lengthscale': 0.25 * np.ones(d), 'noise_var': 1e-8},  # el=0.2, d=2
+        'rss': {'sig_var': 10.0, 'lengthscale': 0.2 * np.ones(d), 'noise_var': 1e-8},  # el=0.2, d=2
         'toa': {'sig_var': 10.0, 'lengthscale': 3.0 * np.ones(d), 'noise_var': 1e-8},
         'doa': {'sig_var': 1.0, 'lengthscale': 2.0 * np.ones(d), 'noise_var': 1e-8},  # al=2, np.array([2, 2])
         'rdr': {'sig_var': 1.0, 'lengthscale': 5.0 * np.ones(d), 'noise_var': 1e-8},
     }
     # baseline: Monte Carlo transform w/ 10,000 samples
-    mc_baseline = MonteCarlo(d, n=1e4)
+    mc_baseline = MonteCarlo(d, n=2e4)
     # tested functions
     # rss has singularity at 0, therefore no derivative at 0
     # toa does not have derivative at 0, for d = 1
     # rss, toa and sos can be tested for all d > 0; physically d=2,3 make sense
     # radar and doa only for d = 2
     test_functions = (
-        sos, toa, rss, doa,
+        sos,
+        toa,
+        rss,
+        doa,
         rdr,
     )
     # moments of the input Gaussian density
     mean = np.zeros(d)
-    cov_samples = 50
+    cov_samples = 100
     # space allocation for KL divergence
     kl_data = np.zeros((3, len(test_functions), cov_samples))
     for i in range(cov_samples):
@@ -202,18 +205,18 @@ def gpq_kl_demo():
         cov = a.dot(cov).dot(a.T)
         for idf, f in enumerate(test_functions):
             # print "Testing {}".format(f.__name__)
+            mean[:d - 1] = 0.2 if f.__name__ in 'rss' else mean[:d - 1]
+            mean[:d - 1] = 3.0 if f.__name__ in 'doa' else mean[:d - 1]
             jitter = 1e-8 * np.eye(2) if f.__name__ == 'rdr' else 1e-8 * np.eye(1)
+            # baseline moments using Monte Carlo
+            mean_mc, cov_mc, cc = mc_baseline.apply(f, mean, cov, None)
             # tested moment trasforms
             transforms = (
                 SphericalRadial(d),
                 GPQuad(d, pts, hyp[f.__name__]),
                 GPQuadDerRBF(d, pts, hyp[f.__name__], dmask),
             )
-            mean[:d - 1] = 0.2 if f.__name__ in 'rss' else mean[:d - 1]
-            mean[:d - 1] = 3.0 if f.__name__ in 'doa' else mean[:d - 1]
             for idt, t in enumerate(transforms):
-                # baseline moments using Monte Carlo
-                mean_mc, cov_mc, cc = mc_baseline.apply(f, mean, cov, None)
                 # apply transform
                 mean_t, cov_t, cc = t.apply(f, mean, cov, None)
                 # calculate KL distance to the baseline moments
@@ -289,6 +292,6 @@ def plot_func(f, d, n=100, xrng=(-3, 3)):
 table = gpq_kl_demo()
 pd.set_option('display.float_format', '{:.2e}'.format)
 print table
-fo = open('kl_div_table.tex', 'w')
-table.to_latex(fo)
-fo.close()
+# fo = open('kl_div_table.tex', 'w')
+# table.T.to_latex(fo)
+# fo.close()
