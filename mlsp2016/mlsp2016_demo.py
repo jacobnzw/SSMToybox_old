@@ -3,6 +3,7 @@ import numpy as np
 import numpy.linalg as la
 import pandas as pd
 import matplotlib.pyplot as plt
+from matplotlib import cm
 from numpy import newaxis as na
 from transforms.taylor import Taylor1stOrder, TaylorGPQD
 from transforms.quad import MonteCarlo, Unscented, GaussHermite, SphericalRadial
@@ -276,7 +277,10 @@ def plot_func(f, d, n=100, xrng=(-3, 3)):
                 Z[i, j] = f([X[i, j], Y[i, j]], None)
         fig = plt.figure()
         ax = fig.add_subplot(111, projection='3d')
-        ax.plot_surface(X, Y, Z)
+        ax.plot_surface(X, Y, Z, cmap=cm.viridis, alpha=0.5, linewidth=0.75)
+        ax.contour(X, Y, Z, zdir='z', offset=np.min(Z), cmap=cm.viridis)
+        ax.contour(X, Y, Z, zdir='x', offset=np.min(X), cmap=cm.viridis)
+        ax.contour(X, Y, Z, zdir='y', offset=np.max(Y), cmap=cm.viridis)
         plt.show()
     else:
         y = np.zeros(n)
@@ -287,11 +291,11 @@ def plot_func(f, d, n=100, xrng=(-3, 3)):
     return fig
 
 
-# fig = plot_func(rss, 2, n=200)
+fig = plot_func(rss, 2, n=100)
 
-table = gpq_kl_demo()
-pd.set_option('display.float_format', '{:.2e}'.format)
-print table
+# table = gpq_kl_demo()
+# pd.set_option('display.float_format', '{:.2e}'.format)
+# print table
 # fo = open('kl_div_table.tex', 'w')
 # table.T.to_latex(fo)
 # fo.close()
