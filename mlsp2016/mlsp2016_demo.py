@@ -119,6 +119,32 @@ def rel_error(mu_true, mu_approx):
     return la.norm((mu_true - mu_approx) / mu_true)
 
 
+def plot_func(f, d, n=100, xrng=(-3, 3)):
+    xmin, xmax = xrng
+    x = np.linspace(xmin, xmax, n)
+    assert d <= 2, "Dimensions > 2 not supported. d={}".format(d)
+    if d > 1:
+        X, Y = np.meshgrid(x, x)
+        Z = np.zeros((n, n))
+        for i in range(n):
+            for j in range(n):
+                Z[i, j] = f([X[i, j], Y[i, j]], None)
+        fig = plt.figure()
+        ax = fig.add_subplot(111, projection='3d')
+        ax.plot_surface(X, Y, Z, cmap=cm.viridis, alpha=0.5, linewidth=0.75)
+        ax.contour(X, Y, Z, zdir='z', offset=np.min(Z), cmap=cm.viridis)
+        ax.contour(X, Y, Z, zdir='x', offset=np.min(X), cmap=cm.viridis)
+        ax.contour(X, Y, Z, zdir='y', offset=np.max(Y), cmap=cm.viridis)
+        plt.show()
+    else:
+        y = np.zeros(n)
+        for i in range(n):
+            y[i] = f(x[i], None)
+        fig = plt.plot(x, y)
+        plt.show()
+    return fig
+
+
 def taylor_gpqd_demo(f):
     """Compares performance of GPQ+D-RBF transform w/ finite lengthscale and Linear transform."""
     d = 2  # dimension
@@ -284,44 +310,46 @@ def gpq_hypers_demo():
         GPQuadDerRBF(d, pts, hypd[f.__name__], dmask).plot_gp_model(f, pts, None)
 
 
-def plot_func(f, d, n=100, xrng=(-3, 3)):
-    xmin, xmax = xrng
-    x = np.linspace(xmin, xmax, n)
-    assert d <= 2, "Dimensions > 2 not supported. d={}".format(d)
-    if d > 1:
-        X, Y = np.meshgrid(x, x)
-        Z = np.zeros((n, n))
-        for i in range(n):
-            for j in range(n):
-                Z[i, j] = f([X[i, j], Y[i, j]], None)
-        fig = plt.figure()
-        ax = fig.add_subplot(111, projection='3d')
-        ax.plot_surface(X, Y, Z, cmap=cm.viridis, alpha=0.5, linewidth=0.75)
-        ax.contour(X, Y, Z, zdir='z', offset=np.min(Z), cmap=cm.viridis)
-        ax.contour(X, Y, Z, zdir='x', offset=np.min(X), cmap=cm.viridis)
-        ax.contour(X, Y, Z, zdir='y', offset=np.max(Y), cmap=cm.viridis)
-        plt.show()
-    else:
-        y = np.zeros(n)
-        for i in range(n):
-            y[i] = f(x[i], None)
-        fig = plt.plot(x, y)
-        plt.show()
-    return fig
+def gpq_sos_demo():
+    """Sum of squares analytical moments compared with GPQ, GPQ+D and Spherical Radial transforms."""
+    # input dimension
+    d = 1
+    # input mean and covariance
+    mean_in, cov_in = np.zeros(d), np.eye(d)
+    # unit sigma-points
+    pts = SphericalRadial.unit_sigma_points(d)
+    # derivative mask, which derivatives to use
+    dmask = np.arange(pts.shape[1])
+    # RBF kernel hyper-parameters
+    hyp = {
+        'gpq': {'sig_var': 10.0, 'lengthscale': 6.0 * np.ones(d), 'noise_var': 1e-8},
+        'gpqd': {'sig_var': 10.0, 'lengthscale': 6.0 * np.ones(d), 'noise_var': 1e-8},
+    }
+    transforms = {
+        SphericalRadial(d),
+        GPQuad(d, pts, hyp['gpq']),
+        GPQuadDerRBF(d, pts, hyp['gpqd'], dmask),
+    }
+    mean_true, cov_true = d, 2 * d
+    print "{:<15}:\t {:.4f} \t{:.4f}".format("True moments", mean_true, cov_true)
+    for t in transforms:
+        m, c, cc = t.apply(sos, mean_in, cov_in, None)
+        print "{:<15}:\t {:.4f} \t{:.4f}".format(t.__class__.__name__, np.asscalar(m), np.asscalar(c))
 
 
+gpq_sos_demo()
 # gpq_int_var_demo()
 
 # fig = plot_func(rss, 2, n=100)
 
-kl_tab, re_mean_tab, re_cov_tab = gpq_kl_demo()
-pd.set_option('display.float_format', '{:.2e}'.format)
-print "\nSymmetrized KL-divergence"
-print kl_tab
-print "\nRelative error in the mean"
-print re_mean_tab
-print "\nRelative error in the covariance"
-print re_cov_tab
+# kl_tab, re_mean_tab, re_cov_tab = gpq_kl_demo()
+# pd.set_option('display.float_format', '{:.2e}'.format)
+# print "\nSymmetrized KL-divergence"
+# print kl_tab
+# print "\nRelative error in the mean"
+# print re_mean_tab
+# print "\nRelative error in the covariance"
+# print re_cov_tab
 # fo = open('kl_div_table.tex', 'w')
 # table.T.to_latex(fo)
 # fo.close()
