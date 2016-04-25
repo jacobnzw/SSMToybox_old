@@ -38,7 +38,10 @@ algorithms = (
     # EKF, GPQ+D w/ affine kernel, GPQ+D w/ RBF kernel (el --> infty)
     ExtendedKalman(ssm),
     # GPQ+D RBF kernel w/ single sigma-point, becomes EKF for el --> infinity
+    ExtendedKalmanGPQD(ssm, el=0.1),
+    ExtendedKalmanGPQD(ssm, el=0.5),
     ExtendedKalmanGPQD(ssm, el=1.0),
+    ExtendedKalmanGPQD(ssm, el=5.0),
     # GPQ+D affine kernel w/ single sigma-point, x = m + L*xi
     # GPQuadDerAffineKalman(ssm, usp_0, usp_0, hyp_affine, hyp_affine, which_der=der_mask),
     # GPQ+D RBF kernel w/ single sigma-point, x = m + L*xi

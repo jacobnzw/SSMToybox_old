@@ -145,6 +145,12 @@ def plot_func(f, d, n=100, xrng=(-3, 3)):
     return fig
 
 
+def save_table(table, filename):
+    fo = open(filename, 'w')
+    table.to_latex(fo)
+    fo.close()
+
+
 def taylor_gpqd_demo(f):
     """Compares performance of GPQ+D-RBF transform w/ finite lengthscale and Linear transform."""
     d = 2  # dimension
@@ -246,7 +252,7 @@ def gpq_kl_demo():
         for idf, f in enumerate(test_functions):
             # print "Testing {}".format(f.__name__)
             mean[:d - 1] = 0.2 if f.__name__ in 'rss' else mean[:d - 1]
-            mean[:d - 1] = 3.0 if f.__name__ in 'doa' else mean[:d - 1]
+            mean[:d - 1] = 3.0 if f.__name__ in 'doa rdr' else mean[:d - 1]
             jitter = 1e-8 * np.eye(2) if f.__name__ == 'rdr' else 1e-8 * np.eye(1)
             # baseline moments using Monte Carlo
             mean_mc, cov_mc, cc = mc_baseline.apply(f, mean, cov, None)
@@ -272,7 +278,7 @@ def gpq_kl_demo():
     col_labels = [f.__name__ for f in test_functions]
     kl_df = pd.DataFrame(kl_data, index=row_labels, columns=col_labels)
     re_mean_df = pd.DataFrame(re_data_mean, index=row_labels, columns=col_labels)
-    re_cov_df = pd.DataFrame(re_data_mean, index=row_labels, columns=col_labels)
+    re_cov_df = pd.DataFrame(re_data_cov, index=row_labels, columns=col_labels)
     return kl_df, re_mean_df, re_cov_df
 
 
@@ -312,32 +318,43 @@ def gpq_hypers_demo():
 
 def gpq_sos_demo():
     """Sum of squares analytical moments compared with GPQ, GPQ+D and Spherical Radial transforms."""
-    # input dimension
-    d = 1
-    # input mean and covariance
-    mean_in, cov_in = np.zeros(d), np.eye(d)
-    # unit sigma-points
-    pts = SphericalRadial.unit_sigma_points(d)
-    # derivative mask, which derivatives to use
-    dmask = np.arange(pts.shape[1])
-    # RBF kernel hyper-parameters
-    hyp = {
-        'gpq': {'sig_var': 10.0, 'lengthscale': 6.0 * np.ones(d), 'noise_var': 1e-8},
-        'gpqd': {'sig_var': 10.0, 'lengthscale': 6.0 * np.ones(d), 'noise_var': 1e-8},
-    }
-    transforms = {
-        SphericalRadial(d),
-        GPQuad(d, pts, hyp['gpq']),
-        GPQuadDerRBF(d, pts, hyp['gpqd'], dmask),
-    }
-    mean_true, cov_true = d, 2 * d
-    print "{:<15}:\t {:.4f} \t{:.4f}".format("True moments", mean_true, cov_true)
-    for t in transforms:
-        m, c, cc = t.apply(sos, mean_in, cov_in, None)
-        print "{:<15}:\t {:.4f} \t{:.4f}".format(t.__class__.__name__, np.asscalar(m), np.asscalar(c))
+    # input dimensions
+    dims = [1, 5, 10, 25]
+    sos_data = np.zeros((6, len(dims)))
+    for di, d in enumerate(dims):
+        # input mean and covariance
+        mean_in, cov_in = np.zeros(d), np.eye(d)
+        # unit sigma-points
+        pts = SphericalRadial.unit_sigma_points(d)
+        # derivative mask, which derivatives to use
+        dmask = np.arange(pts.shape[1])
+        # RBF kernel hyper-parameters
+        hyp = {
+            'gpq': {'sig_var': 1.0, 'lengthscale': 10.0 * np.ones(d), 'noise_var': 1e-8},
+            'gpqd': {'sig_var': 1.0, 'lengthscale': 10.0 * np.ones(d), 'noise_var': 1e-8},
+        }
+        transforms = (
+            SphericalRadial(d),
+            GPQuad(d, pts, hyp['gpq']),
+            GPQuadDerRBF(d, pts, hyp['gpqd'], dmask),
+        )
+        mean_true, cov_true = d, 2 * d
+        # print "{:<15}:\t {:.4f} \t{:.4f}".format("True moments", mean_true, cov_true)
+        for ti, t in enumerate(transforms):
+            m, c, cc = t.apply(sos, mean_in, cov_in, None)
+            sos_data[ti, di] = np.asscalar(m)
+            sos_data[ti + len(transforms), di] = np.asscalar(c)
+            # print "{:<15}:\t {:.4f} \t{:.4f}".format(t.__class__.__name__, np.asscalar(m), np.asscalar(c))
+    row_labels = [t.__class__.__name__ for t in transforms]
+    col_labels = [str(d) for d in dims]
+    sos_table = pd.DataFrame(sos_data, index=row_labels * 2, columns=col_labels)
+    return sos_table
 
 
-gpq_sos_demo()
+pd.set_option('display.float_format', '{:.2f}'.format)
+sos_table = gpq_sos_demo()
+save_table(sos_table, 'sum_of_squares.tex')
+print sos_table
 # gpq_int_var_demo()
 
 # fig = plot_func(rss, 2, n=100)
