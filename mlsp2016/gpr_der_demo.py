@@ -6,6 +6,11 @@ from scipy.linalg import cho_factor, cho_solve
 import matplotlib as mpl
 import matplotlib.pylab as plt
 from matplotlib.lines import Line2D
+from transforms import Unscented
+from transforms.quad import MonteCarlo, Unscented
+from transforms.bayesquad import GPQuad, GPQuadDerRBF
+from models.ungm import UNGM
+from scipy.stats import norm
 
 """Demo showcasing the GP regression with derivative observations."""
 
@@ -72,7 +77,7 @@ def df(x):
 
 xs = np.linspace(-3, 3, 50)  # test set
 fx = f(xs)
-xtr = np.array([0, -1, 1], dtype=float)  # train set
+xtr = np.sqrt(3) * np.array([0, -1, 1], dtype=float)  # train set
 ytr = f(xtr)  # function observations + np.random.randn(xtr.shape[0])
 dtr = df(xtr)  # derivative observations
 y = np.hstack((ytr, dtr))
@@ -174,7 +179,37 @@ for i in range(len(dtr)):
     plt.gca().add_line(Line2D([x0, x1], [y0, y1], linewidth=6, color='k'))
 plt.tight_layout(pad=0.5)
 plt.savefig('gpr_grad_obs.pdf', format='pdf')
+# integral variances
+d = 1
+ut_pts = Unscented.unit_sigma_points(d)
+f = UNGM().dyn_eval
+mean = np.zeros(d)
+cov = np.eye(d)
+gpq = GPQuad(d, unit_sp=ut_pts, hypers={'sig_var': 10.0, 'lengthscale': 0.7 * np.ones(d), 'noise_var': 1e-8})
+gpqd = GPQuadDerRBF(d, unit_sp=ut_pts, hypers={'sig_var': 10.0, 'lengthscale': 0.7 * np.ones(d), 'noise_var': 1e-8},
+                    which_der=np.arange(ut_pts.shape[1]))
+mct = MonteCarlo(d, n=2e4)
+mean_gpq, cov_gpq, cc_gpq = gpq.apply(f, mean, cov, np.atleast_1d(1.0))
+mean_gpqd, cov_gpqd, cc_gpqd = gpqd.apply(f, mean, cov, np.atleast_1d(1.0))
+mean_mc, cov_mc, cc_mc = mct.apply(f, mean, cov, np.atleast_1d(1.0))
 
+xmin_gpq = norm.ppf(0.0001, loc=mean_gpq, scale=gpq.integral_var)
+xmax_gpq = norm.ppf(0.9999, loc=mean_gpq, scale=gpq.integral_var)
+xmin_gpqd = norm.ppf(0.0001, loc=mean_gpqd, scale=gpqd.integral_var)
+xmax_gpqd = norm.ppf(0.9999, loc=mean_gpqd, scale=gpqd.integral_var)
+xgpq = np.linspace(xmin_gpq, xmax_gpq, 500)
+ygpq = norm.pdf(xgpq, loc=mean_gpq, scale=gpq.integral_var)
+xgpqd = np.linspace(xmin_gpqd, xmax_gpqd, 500)
+ygpqd = norm.pdf(xgpqd, loc=mean_gpqd, scale=gpqd.integral_var)
+#
+plt.figure(figsize=(fig_w, fig_h))
+plt.axis([np.min([xmin_gpq, xmin_gpqd]), np.max([xmax_gpq, xmax_gpqd]), 0, np.max(ygpqd) + 0.2 * np.ptp(ygpqd)])
+plt.tick_params(**tick_settings)
+plt.plot(xgpq, ygpq, 'k-.', lw=2)
+plt.plot(xgpqd, ygpqd, 'k-', lw=2)
+plt.gca().add_line(Line2D([mean_mc, mean_mc], [0, 10], color='r', ls='--', lw=2))
+plt.tight_layout(pad=0.5)
+plt.savefig('gpq_int_var.pdf', format='pdf')
 
 
 # fig = plt.figure()

@@ -4,6 +4,7 @@ import numpy.linalg as la
 import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib import cm
+from matplotlib.lines import Line2D
 from numpy import newaxis as na
 from transforms.taylor import Taylor1stOrder, TaylorGPQD
 from transforms.quad import MonteCarlo, Unscented, GaussHermite, SphericalRadial
@@ -112,6 +113,12 @@ def kl_div_sym(mu0, sig0, mu1, sig1):
     return 0.5 * (kl_div(mu0, sig0, mu1, sig1) + kl_div(mu1, sig1, mu0, sig0))
 
 
+def rel_error(mu_true, mu_approx):
+    """Relative error."""
+    assert mu_true.shape == mu_approx.shape
+    return la.norm((mu_true - mu_approx) / mu_true)
+
+
 def taylor_gpqd_demo(f):
     """Compares performance of GPQ+D-RBF transform w/ finite lengthscale and Linear transform."""
     d = 2  # dimension
@@ -143,12 +150,14 @@ def gpq_int_var_demo():
     f = UNGM().dyn_eval
     mean = np.zeros(d)
     cov = np.eye(d)
-    gpq = GPQuad(d, unit_sp=ut_pts, hypers={'sig_var': 1.0, 'lengthscale': 1.0 * np.ones(d), 'noise_var': 1e-8})
-    gpqd = GPQuadDerRBF(d, unit_sp=ut_pts, hypers={'sig_var': 1.0, 'lengthscale': 1.0 * np.ones(d), 'noise_var': 1e-8},
+    gpq = GPQuad(d, unit_sp=ut_pts, hypers={'sig_var': 10.0, 'lengthscale': 0.7 * np.ones(d), 'noise_var': 1e-8})
+    gpqd = GPQuadDerRBF(d, unit_sp=ut_pts, hypers={'sig_var': 10.0, 'lengthscale': 0.7 * np.ones(d), 'noise_var': 1e-8},
                         which_der=np.arange(ut_pts.shape[1]))
+    mct = MonteCarlo(d, n=1e4)
     mean_gpq, cov_gpq, cc_gpq = gpq.apply(f, mean, cov, np.atleast_1d(1.0))
     mean_gpqd, cov_gpqd, cc_gpqd = gpqd.apply(f, mean, cov, np.atleast_1d(1.0))
-    plt.figure()
+    mean_mc, cov_mc, cc_mc = mct.apply(f, mean, cov, np.atleast_1d(1.0))
+
     xmin_gpq = norm.ppf(0.0001, loc=mean_gpq, scale=gpq.integral_var)
     xmax_gpq = norm.ppf(0.9999, loc=mean_gpq, scale=gpq.integral_var)
     xmin_gpqd = norm.ppf(0.0001, loc=mean_gpqd, scale=gpqd.integral_var)
@@ -157,8 +166,10 @@ def gpq_int_var_demo():
     ygpq = norm.pdf(xgpq, loc=mean_gpq, scale=gpq.integral_var)
     xgpqd = np.linspace(xmin_gpqd, xmax_gpqd, 500)
     ygpqd = norm.pdf(xgpqd, loc=mean_gpqd, scale=gpqd.integral_var)
+    plt.figure()
     plt.plot(xgpq, ygpq, lw=2)
     plt.plot(xgpqd, ygpqd, lw=2)
+    plt.gca().add_line(Line2D([mean_mc, mean_mc], [0, 150], linewidth=2, color='k'))
     plt.show()
 
 
@@ -198,6 +209,8 @@ def gpq_kl_demo():
     cov_samples = 100
     # space allocation for KL divergence
     kl_data = np.zeros((3, len(test_functions), cov_samples))
+    re_data_mean = np.zeros((3, len(test_functions), cov_samples))
+    re_data_cov = np.zeros((3, len(test_functions), cov_samples))
     for i in range(cov_samples):
         # random PD matrix
         a = np.random.randn(d, d)
@@ -222,13 +235,19 @@ def gpq_kl_demo():
                 mean_t, cov_t, cc = t.apply(f, mean, cov, None)
                 # calculate KL distance to the baseline moments
                 kl_data[idt, idf, i] = kl_div_sym(mean_mc, cov_mc + jitter, mean_t, cov_t + jitter)
+                re_data_mean[idt, idf, i] = rel_error(mean_mc, mean_t)
+                re_data_cov[idt, idf, i] = rel_error(cov_mc, cov_t)
     # average over MC samples
     kl_data = kl_data.mean(axis=2)
+    re_data_mean = re_data_mean.mean(axis=2)
+    re_data_cov = re_data_cov.mean(axis=2)
     # put into pandas dataframe for nice printing and latex output
     row_labels = [t.__class__.__name__ for t in transforms]
     col_labels = [f.__name__ for f in test_functions]
     kl_df = pd.DataFrame(kl_data, index=row_labels, columns=col_labels)
-    return kl_df
+    re_mean_df = pd.DataFrame(re_data_mean, index=row_labels, columns=col_labels)
+    re_cov_df = pd.DataFrame(re_data_mean, index=row_labels, columns=col_labels)
+    return kl_df, re_mean_df, re_cov_df
 
 
 def gpq_hypers_demo():
@@ -291,11 +310,18 @@ def plot_func(f, d, n=100, xrng=(-3, 3)):
     return fig
 
 
-fig = plot_func(rss, 2, n=100)
+# gpq_int_var_demo()
 
-# table = gpq_kl_demo()
-# pd.set_option('display.float_format', '{:.2e}'.format)
-# print table
+# fig = plot_func(rss, 2, n=100)
+
+kl_tab, re_mean_tab, re_cov_tab = gpq_kl_demo()
+pd.set_option('display.float_format', '{:.2e}'.format)
+print "\nSymmetrized KL-divergence"
+print kl_tab
+print "\nRelative error in the mean"
+print re_mean_tab
+print "\nRelative error in the covariance"
+print re_cov_tab
 # fo = open('kl_div_table.tex', 'w')
 # table.T.to_latex(fo)
 # fo.close()
