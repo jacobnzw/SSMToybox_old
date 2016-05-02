@@ -321,6 +321,8 @@ def gpq_sos_demo():
     # input dimensions
     dims = [1, 5, 10, 25]
     sos_data = np.zeros((6, len(dims)))
+    ivar_data = np.zeros((3, len(dims)))
+    ivar_data[0, :] = dims
     for di, d in enumerate(dims):
         # input mean and covariance
         mean_in, cov_in = np.zeros(d), np.eye(d)
@@ -338,6 +340,8 @@ def gpq_sos_demo():
             GPQuad(d, pts, hyp['gpq']),
             GPQuadDerRBF(d, pts, hyp['gpqd'], dmask),
         )
+        ivar_data[1, di] = transforms[1].integral_var
+        ivar_data[2, di] = transforms[2].integral_var
         mean_true, cov_true = d, 2 * d
         # print "{:<15}:\t {:.4f} \t{:.4f}".format("True moments", mean_true, cov_true)
         for ti, t in enumerate(transforms):
@@ -348,13 +352,21 @@ def gpq_sos_demo():
     row_labels = [t.__class__.__name__ for t in transforms]
     col_labels = [str(d) for d in dims]
     sos_table = pd.DataFrame(sos_data, index=row_labels * 2, columns=col_labels)
-    return sos_table
+    return sos_table, ivar_data
 
 
 pd.set_option('display.float_format', '{:.2f}'.format)
-sos_table = gpq_sos_demo()
-save_table(sos_table, 'sum_of_squares.tex')
-print sos_table
+sos, ivar = gpq_sos_demo()
+# save_table(sos, 'sum_of_squares.tex')
+print sos
+fig = plt.figure()
+ax = fig.add_subplot(1, 1, 1)
+ax.set_xlim(0, 26)
+ax.set_xticks([1, 5, 10, 25])
+ax.grid(which='major')
+plt.semilogy(ivar[0, :], ivar[1, :], 'ko', ivar[0, :], ivar[2, :], 'k^', ms=8)
+plt.show()
+
 # gpq_int_var_demo()
 
 # fig = plot_func(rss, 2, n=100)

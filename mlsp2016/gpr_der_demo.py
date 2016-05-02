@@ -30,7 +30,7 @@ def maha(x, y, V=None):
     return (x2V[:, na] + y2V[:, na].T) - 2 * x.dot(V).dot(y.T)
 
 
-def kern_rbf_der(xs, x, alpha=10.0, el=0.7, which_der=None):
+def kern_rbf_der(xs, x, alpha=10.0, el=10.0, which_der=None):
     """RBF kernel w/ derivatives."""
     x, xs = np.atleast_2d(x), np.atleast_2d(xs)
     D, N = x.shape
@@ -67,21 +67,23 @@ def kern_rbf_der(xs, x, alpha=10.0, el=0.7, which_der=None):
 
 def f(x):
     # return np.sin(x)*np.cos(x)**2
-    return np.asarray([0.5 * x + 25 * (x / (1 + x ** 2))]).squeeze()
+    # return np.asarray([0.5 * x + 25 * (x / (1 + x ** 2))]).squeeze()
+    return np.sum(x[:, na] ** 2, axis=1).squeeze()
 
 
 def df(x):
     # return np.cos(x)**3 - 2*np.sin(x)**2*np.cos(x)
-    return np.asarray([0.5 + 25 * (1 - x ** 2) / (1 + x ** 2) ** 2]).squeeze()
+    # return np.asarray([0.5 + 25 * (1 - x ** 2) / (1 + x ** 2) ** 2]).squeeze()
+    return 2 * x.squeeze()
 
 
 xs = np.linspace(-3, 3, 50)  # test set
 fx = f(xs)
-xtr = np.sqrt(3) * np.array([0, -1, 1], dtype=float)  # train set
+xtr = np.sqrt(3) * np.array([-1, 1], dtype=float)  # train set
 ytr = f(xtr)  # function observations + np.random.randn(xtr.shape[0])
 dtr = df(xtr)  # derivative observations
 y = np.hstack((ytr, dtr))
-m, n = len(xs), len(xtr)  # # train and test points
+m, n = len(xs), len(xtr)  # train and test points
 jitter = 1e-8
 
 # evaluate kernel matrices
@@ -146,70 +148,72 @@ for i in range(len(dtr)):
     y1 = dtr[i] * (x1 - xtr[i]) + ytr[i]
     plt.gca().add_line(Line2D([x0, x1], [y0, y1], linewidth=6, color='k'))
 plt.tight_layout()
-plt.savefig('gpr_grad_compar.pdf', format='pdf')
+plt.show()
+# plt.savefig('gpr_grad_compar.pdf', format='pdf')
 
 # two figure version
-scale = 0.5
-fig_w = fig_width_pt * pti
-fig_h = fig_w * golden_mean * scale
-# plot ordinary GP regression fit
-plt.figure(figsize=(fig_w, fig_h))
-plt.axis(axis_limits)
-plt.tick_params(**tick_settings)
-plt.plot(xs, fx, 'r--', label='true')
-plt.plot(xtr, ytr, 'ko', ms=10, label='observed fcn values')
-plt.plot(xs, gp_mean, 'k-', lw=2, label='GP mean')
-plt.fill_between(xs, gp_mean - 2 * gp_std, gp_mean + 2 * gp_std, color='k', alpha=0.15)
-plt.tight_layout(pad=0.5)
-plt.savefig('gpr_fcn_obs.pdf', format='pdf')
-# plot GP regression fit w/ derivative observations
-plt.figure(figsize=(fig_w, fig_h))
-plt.axis(axis_limits)
-plt.tick_params(**tick_settings)
-plt.plot(xs, fx, 'r--', label='true')
-plt.plot(xtr, ytr, 'ko', ms=10, label='observed fcn values')
-plt.plot(xs, gp_mean_d, 'k-', lw=2, label='GP mean')
-plt.fill_between(xs, gp_mean_d - 2 * gp_std_d, gp_mean_d + 2 * gp_std_d, color='k', alpha=0.15)
-# plot line segments to indicate derivative observations
-h = 0.15
-for i in range(len(dtr)):
-    x0, x1 = xtr[i] - h, xtr[i] + h
-    y0 = dtr[i] * (x0 - xtr[i]) + ytr[i]
-    y1 = dtr[i] * (x1 - xtr[i]) + ytr[i]
-    plt.gca().add_line(Line2D([x0, x1], [y0, y1], linewidth=6, color='k'))
-plt.tight_layout(pad=0.5)
-plt.savefig('gpr_grad_obs.pdf', format='pdf')
-# integral variances
-d = 1
-ut_pts = Unscented.unit_sigma_points(d)
-f = UNGM().dyn_eval
-mean = np.zeros(d)
-cov = np.eye(d)
-gpq = GPQuad(d, unit_sp=ut_pts, hypers={'sig_var': 10.0, 'lengthscale': 0.7 * np.ones(d), 'noise_var': 1e-8})
-gpqd = GPQuadDerRBF(d, unit_sp=ut_pts, hypers={'sig_var': 10.0, 'lengthscale': 0.7 * np.ones(d), 'noise_var': 1e-8},
-                    which_der=np.arange(ut_pts.shape[1]))
-mct = MonteCarlo(d, n=2e4)
-mean_gpq, cov_gpq, cc_gpq = gpq.apply(f, mean, cov, np.atleast_1d(1.0))
-mean_gpqd, cov_gpqd, cc_gpqd = gpqd.apply(f, mean, cov, np.atleast_1d(1.0))
-mean_mc, cov_mc, cc_mc = mct.apply(f, mean, cov, np.atleast_1d(1.0))
+# scale = 0.5
+# fig_w = fig_width_pt * pti
+# fig_h = fig_w * golden_mean * 1
+# # plot ordinary GP regression fit
+# plt.figure(figsize=(fig_w, fig_h))
+# plt.axis(axis_limits)
+# plt.tick_params(**tick_settings)
+# plt.plot(xs, fx, 'r--', label='true')
+# plt.plot(xtr, ytr, 'ko', ms=10, label='observed fcn values')
+# plt.plot(xs, gp_mean, 'k-', lw=2, label='GP mean')
+# plt.fill_between(xs, gp_mean - 2 * gp_std, gp_mean + 2 * gp_std, color='k', alpha=0.15)
+# plt.tight_layout(pad=0.5)
+# plt.savefig('gpr_fcn_obs_small.pdf', format='pdf')
+# # plot GP regression fit w/ derivative observations
+# plt.figure(figsize=(fig_w, fig_h))
+# plt.axis(axis_limits)
+# plt.tick_params(**tick_settings)
+# plt.plot(xs, fx, 'r--', label='true')
+# plt.plot(xtr, ytr, 'ko', ms=10, label='observed fcn values')
+# plt.plot(xs, gp_mean_d, 'k-', lw=2, label='GP mean')
+# plt.fill_between(xs, gp_mean_d - 2 * gp_std_d, gp_mean_d + 2 * gp_std_d, color='k', alpha=0.15)
+# # plot line segments to indicate derivative observations
+# h = 0.15
+# for i in range(len(dtr)):
+#     x0, x1 = xtr[i] - h, xtr[i] + h
+#     y0 = dtr[i] * (x0 - xtr[i]) + ytr[i]
+#     y1 = dtr[i] * (x1 - xtr[i]) + ytr[i]
+#     plt.gca().add_line(Line2D([x0, x1], [y0, y1], linewidth=6, color='k'))
+# plt.tight_layout(pad=0.5)
+# plt.savefig('gpr_grad_obs_small.pdf', format='pdf')
 
-xmin_gpq = norm.ppf(0.0001, loc=mean_gpq, scale=gpq.integral_var)
-xmax_gpq = norm.ppf(0.9999, loc=mean_gpq, scale=gpq.integral_var)
-xmin_gpqd = norm.ppf(0.0001, loc=mean_gpqd, scale=gpqd.integral_var)
-xmax_gpqd = norm.ppf(0.9999, loc=mean_gpqd, scale=gpqd.integral_var)
-xgpq = np.linspace(xmin_gpq, xmax_gpq, 500)
-ygpq = norm.pdf(xgpq, loc=mean_gpq, scale=gpq.integral_var)
-xgpqd = np.linspace(xmin_gpqd, xmax_gpqd, 500)
-ygpqd = norm.pdf(xgpqd, loc=mean_gpqd, scale=gpqd.integral_var)
+# integral variances
+# d = 1
+# ut_pts = Unscented.unit_sigma_points(d)
+# f = UNGM().dyn_eval
+# mean = np.zeros(d)
+# cov = np.eye(d)
+# gpq = GPQuad(d, unit_sp=ut_pts, hypers={'sig_var': 10.0, 'lengthscale': 0.7 * np.ones(d), 'noise_var': 1e-8})
+# gpqd = GPQuadDerRBF(d, unit_sp=ut_pts, hypers={'sig_var': 10.0, 'lengthscale': 0.7 * np.ones(d), 'noise_var': 1e-8},
+#                     which_der=np.arange(ut_pts.shape[1]))
+# mct = MonteCarlo(d, n=2e4)
+# mean_gpq, cov_gpq, cc_gpq = gpq.apply(f, mean, cov, np.atleast_1d(1.0))
+# mean_gpqd, cov_gpqd, cc_gpqd = gpqd.apply(f, mean, cov, np.atleast_1d(1.0))
+# mean_mc, cov_mc, cc_mc = mct.apply(f, mean, cov, np.atleast_1d(1.0))
 #
-plt.figure(figsize=(fig_w, fig_h))
-plt.axis([np.min([xmin_gpq, xmin_gpqd]), np.max([xmax_gpq, xmax_gpqd]), 0, np.max(ygpqd) + 0.2 * np.ptp(ygpqd)])
-plt.tick_params(**tick_settings)
-plt.plot(xgpq, ygpq, 'k-.', lw=2)
-plt.plot(xgpqd, ygpqd, 'k-', lw=2)
-plt.gca().add_line(Line2D([mean_mc, mean_mc], [0, 10], color='r', ls='--', lw=2))
-plt.tight_layout(pad=0.5)
-plt.savefig('gpq_int_var.pdf', format='pdf')
+# xmin_gpq = norm.ppf(0.0001, loc=mean_gpq, scale=gpq.integral_var)
+# xmax_gpq = norm.ppf(0.9999, loc=mean_gpq, scale=gpq.integral_var)
+# xmin_gpqd = norm.ppf(0.0001, loc=mean_gpqd, scale=gpqd.integral_var)
+# xmax_gpqd = norm.ppf(0.9999, loc=mean_gpqd, scale=gpqd.integral_var)
+# xgpq = np.linspace(xmin_gpq, xmax_gpq, 500)
+# ygpq = norm.pdf(xgpq, loc=mean_gpq, scale=gpq.integral_var)
+# xgpqd = np.linspace(xmin_gpqd, xmax_gpqd, 500)
+# ygpqd = norm.pdf(xgpqd, loc=mean_gpqd, scale=gpqd.integral_var)
+# #
+# plt.figure(figsize=(fig_w, fig_h))
+# plt.axis([np.min([xmin_gpq, xmin_gpqd]), np.max([xmax_gpq, xmax_gpqd]), 0, np.max(ygpqd) + 0.2 * np.ptp(ygpqd)])
+# plt.tick_params(**tick_settings)
+# plt.plot(xgpq, ygpq, 'k-.', lw=2)
+# plt.plot(xgpqd, ygpqd, 'k-', lw=2)
+# plt.gca().add_line(Line2D([mean_mc, mean_mc], [0, 10], color='r', ls='--', lw=2))
+# plt.tight_layout(pad=0.5)
+# plt.savefig('gpq_int_var.pdf', format='pdf')
 
 
 # fig = plt.figure()
