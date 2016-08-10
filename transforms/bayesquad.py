@@ -25,7 +25,7 @@ class BQTransform(MomentTransform, metaclass=ABCMeta):
         x = mean + chol_cov.dot(self.model.points)
         fx = self._fcn_eval(f, x, fcn_pars)
         mean_f = self._mean(self.wm, fx)
-        cov_f = self._covariance(self.Wc, fx, mean_f)
+        cov_f = self._covariance(self.Wc, fx, mean_f, tf_pars=tf_pars)
         cov_fx = self._cross_covariance(self.Wcc, fx, chol_cov)
         return mean_f, cov_f, cov_fx
 
@@ -69,8 +69,8 @@ class BQTransform(MomentTransform, metaclass=ABCMeta):
     def _mean(self, weights, fcn_evals):
         return fcn_evals.dot(weights)
 
-    def _covariance(self, weights, fcn_evals, mean_out):
-        expected_model_var = self.model.exp_model_variance(fcn_evals)
+    def _covariance(self, weights, fcn_evals, mean_out, tf_pars=None):
+        expected_model_var = self.model.exp_model_variance(fcn_evals, tf_pars)
         return fcn_evals.dot(weights).dot(fcn_evals.T) - np.outer(mean_out, mean_out.T) + expected_model_var
 
     def _cross_covariance(self, weights, fcn_evals, chol_cov_in):
