@@ -5,30 +5,38 @@ from scipy.optimize import minimize
 from inference.gpquad import GPQMKalman
 from models.ungm import UNGM
 from models.pendulum import Pendulum
+from models.tracking import ReentryRadar
 
 
 def param_contraction():
     """Plots SKL between successive parameter posterior approximations of GPQMKalman"""
-    ssm = UNGM()
-    x, y = ssm.simulate(100, 1)
+    ssm = Pendulum()
+    steps, mc = 200, 5
+    # simulate system
+    x, y = ssm.simulate(steps, mc)
+    # set parameter prior moments
+    # mean_0 = np.log([1, 10, 10, 10, 10, 10, 1, 15, 15, 1e5, 1e5, 1e5])
+    # cov_0 = np.diag([1, 1, 1, 1, 1, 1, 1, 1, 1, 0.1, 0.1, 0.1])
     alg = GPQMKalman(ssm, 'rbf', 'sr')
-    d, n, mc = y.shape
-    skl = np.zeros(n)
+    d, steps, mc = y.shape
+    skl = np.zeros((steps, mc))
     cov_tr = skl.copy()
-    steps = np.arange(n)
-    for i in steps:
-        alg._time_update(i)
-        mean_par_0, cov_par_0 = alg.param_mean, alg.param_cov
-        alg._measurement_update(y[:, i, 0], i)
-        skl[i] = _skl(mean_par_0, cov_par_0, alg.param_mean, alg.param_cov)
-        cov_tr[i] = np.trace(alg.param_cov)
+
+    for imc in range(mc):
+        for i in range(steps):
+            alg._time_update(i)
+            mean_par_0, cov_par_0 = alg.param_mean, alg.param_cov
+            alg._measurement_update(y[:, i, imc], i)
+            skl[i, imc] = _skl(mean_par_0, cov_par_0, alg.param_mean, alg.param_cov)
+            cov_tr[i, imc] = np.trace(alg.param_cov)
+        alg.reset()
 
     plt.subplot(211)
     plt.title('Symmetrized KL-divergence')
-    plt.plot(steps, skl)
+    plt.plot(np.arange(steps), skl)
     plt.subplot(212)
     plt.title('Covariance trace')
-    plt.plot(steps, cov_tr)
+    plt.plot(np.arange(steps), cov_tr)
     plt.show()
 
 
@@ -186,5 +194,5 @@ def _skl(mean_0, cov_0, mean_1, cov_1):
 
 if __name__ == '__main__':
     np.set_printoptions(precision=2)
-    # param_contraction()
-    param_optimization()
+    param_contraction()
+    # param_optimization()
