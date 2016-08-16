@@ -17,7 +17,7 @@ def param_contraction():
     # set parameter prior moments
     # mean_0 = np.log([1, 10, 10, 10, 10, 10, 1, 15, 15, 1e5, 1e5, 1e5])
     # cov_0 = np.diag([1, 1, 1, 1, 1, 1, 1, 1, 1, 0.1, 0.1, 0.1])
-    alg = GPQMKalman(ssm, 'rbf', 'sr')
+    alg = GPQMKalman(ssm, 'rbf-ard', 'sr')
     d, steps, mc = y.shape
     skl = np.zeros((steps, mc))
     cov_tr = skl.copy()
@@ -43,11 +43,11 @@ def param_contraction():
 def param_optimization():
     """Given sigma-points, minimize distance between CQ and BQ weights."""
     from transforms.quad import SphericalRadial
-    from transforms.bqkernel import RBF
+    from transforms.bqkernel import RBFARD
     d = 2
     points_cq = SphericalRadial.unit_sigma_points(d)
     weights_cq = SphericalRadial.weights(d)
-    kernel = RBF(d)
+    kernel = RBFARD(d)
 
     # choose random starting parameters
     log_par0 = np.random.randn(d+1)

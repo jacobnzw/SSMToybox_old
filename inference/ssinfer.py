@@ -136,8 +136,8 @@ class MarginalInference(StateSpaceInference):
 
         # Number of parameters for each moment transform and total number of parameters
         # TODO: Generalize, transform should provide number of parameters (sum of kernel, model and point parameters)
-        self.param_dyn_dim = self.ssm.xD + 1
-        self.param_obs_dim = self.ssm.xD + 1
+        self.param_dyn_dim = tf_dyn.model.kernel.hypers_num  # self.ssm.xD + 1
+        self.param_obs_dim = tf_meas.model.kernel.hypers_num  # self.ssm.xD + 1
         self.param_dim = self.param_dyn_dim + self.param_obs_dim
 
         # Log-parameter prior mean and covariance
@@ -191,8 +191,8 @@ class MarginalInference(StateSpaceInference):
 
         # Evaluate state posterior with different values of transform parameters
         for i in range(self.param_pts_num):
-            # FIXME: fcn recomputes predictive estimates (x_mean_pr, x_cov_pr, ...)
-            # FIXME: predictive moments should be computed by quadrature, based on param prior
+            # NOTE: fcn recomputes predictive moments (x_mean_pr, x_cov_pr, ...)
+            # NOTE: if desired, predictive moments should be computed by quadrature, based on param prior
             mean[:, i], cov[:, :, i] = self._state_posterior_moments(param_pts[:, i], y, time)
 
         # Weighted sum of means and covariances approximates Gaussian mixture state posterior

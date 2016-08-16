@@ -5,7 +5,7 @@ import numpy as np
 import numpy.linalg as la
 from scipy.optimize import minimize
 
-from .bqkernel import RBF
+from .bqkernel import RBFARD, RBF
 from .quad import SphericalRadial, Unscented, GaussHermite
 
 
@@ -14,7 +14,7 @@ from .quad import SphericalRadial, Unscented, GaussHermite
 
 class Model(object, metaclass=ABCMeta):
     _supported_points_ = ['sr', 'ut', 'gh']
-    _supported_kernels_ = ['rbf']
+    _supported_kernels_ = ['rbf', 'rbf-ard']
 
     def __init__(self, dim, kernel, points, kern_hyp=None, point_hyp=None):
         if kern_hyp is None:
@@ -138,14 +138,16 @@ class Model(object, metaclass=ABCMeta):
             print('Kernel {} not supported. Supported kernels are {}.'.format(kernel, Model._supported_kernels_))
             return None
         # initialize the chosen kernel
-        if kernel == 'rbf':
+        if kernel == 'rbf-ard':
+            return RBFARD(dim, hypers)
+        elif kernel == 'rbf':
             return RBF(dim, hypers)
         elif kernel == 'affine':
             return Affine(dim, hypers)
 
 
 class GaussianProcess(Model):  # consider renaming to GaussianProcessRegression/GPRegression, same for TP
-    def __init__(self, dim, kernel='rbf', points='ut', kern_hyp=None, point_hyp=None):
+    def __init__(self, dim, kernel='rbf-ard', points='ut', kern_hyp=None, point_hyp=None):
         super(GaussianProcess, self).__init__(dim, kernel, points, kern_hyp, point_hyp)
 
     def predict(self, test_data, fcn_obs, hyp=None):
@@ -193,7 +195,7 @@ class GaussianProcess(Model):  # consider renaming to GaussianProcessRegression/
 
 
 class StudentTProcess(Model):
-    def __init__(self, dim, kernel='rbf', points='ut', kern_hyp=None, point_hyp=None, nu=None):
+    def __init__(self, dim, kernel='rbf-ard', points='ut', kern_hyp=None, point_hyp=None, nu=None):
         super(StudentTProcess, self).__init__(dim, kernel, points, kern_hyp, point_hyp)
         nu = 3.0 if nu is None else nu
         assert nu > 2, 'Degrees of freedom (nu) must be > 2.'

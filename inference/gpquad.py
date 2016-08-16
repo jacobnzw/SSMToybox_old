@@ -31,14 +31,14 @@ class GPQMKalman(MarginalInference):
 
 def main():
     # UNGM demo
-    from models.ungm import ungm_filter_demo
+    # from models.ungm import ungm_filter_demo
     # hdyn = {'alpha': 2.5, 'el': 0.1}
     # hobs = {'alpha': 1.0, 'el': 1.0 * np.ones(1)}
     # ut_hyp = {'kappa': 0.0}
-    # ungm_filter_demo(GPQKalman, 'rbf', 'sr', kern_hyp_dyn=hdyn, kern_hyp_obs=hobs, point_hyp=ut_hyp)
-    par_prior_mean = np.log(np.array([2.5, 0.5, 1, 1]))
-    par_prior_cov = np.diag([0.1, 1, 0.1, 1])
-    ungm_filter_demo(GPQMKalman, 'rbf', 'sr', par_mean=par_prior_mean, par_cov=par_prior_cov)
+    # ungm_filter_demo(GPQKalman, 'rbf-ard', 'sr', kern_hyp_dyn=hdyn, kern_hyp_obs=hobs, point_hyp=ut_hyp)
+    # par_prior_mean = np.log(np.array([1, 1, 1, 1]))
+    # par_prior_cov = np.diag([1, 1, 1, 1])
+    # ungm_filter_demo(GPQMKalman, 'rbf-ard', 'sr', par_mean=par_prior_mean, par_cov=par_prior_cov)
 
 
     # Pendulum demo
@@ -51,8 +51,8 @@ def main():
     #               'point_hyp': {'degree': 5}}
     # kwargs_ut = {'kern_hyp_dyn': {'alpha': 1.0, 'el': [3.0, 3.0]},  # emv 3.3, 5.9e4
     #              'kern_hyp_obs': {'alpha': 1.0, 'el': [2.0, 1e4]}, }
-    # pendulum_filter_demo(GPQKalman, 'rbf', 'sr', **kwargs_ut)
-    # pendulum_filter_demo(GPQMKalman, 'rbf', 'sr')
+    # pendulum_filter_demo(GPQKalman, 'rbf-ard', 'sr', **kwargs_ut)
+    # pendulum_filter_demo(GPQMKalman, 'rbf-ard', 'sr')
 
 
     # Reentry vehicle tracking demo
@@ -61,11 +61,11 @@ def main():
     # lengthscale for the remaining dimensions, which ensures they will not contribute significantly to kernel
     # covariance (the RBF kernel is expressed in terms of inverse lengthscales).
     # TODO: find hypers that give position RMSE < ~0.01 (UKF), GPQKF best position RMSE is ~0.1,
-    # from models.tracking import reentry_filter_demo
-    # d = 5
-    # hdyn = {'alpha': 1.0, 'el': 10*np.ones(5)}
-    # hobs = {'alpha': 1.0, 'el': [15.0, 15.0, 1e5, 1e5, 1e5]}
-    # reentry_filter_demo(GPQKalman, 'rbf', 'ut', kern_hyp_dyn=hdyn, kern_hyp_obs=hobs)
+    from models.tracking import reentry_filter_demo
+    d = 5
+    hdyn = {'alpha': 1.0, 'el': 10*np.ones(5)}
+    hobs = {'alpha': 1.0, 'el': [15.0, 15.0, 1e5, 1e5, 1e5]}
+    reentry_filter_demo(GPQKalman, 'rbf-ard', 'ut', kern_hyp_dyn=hdyn, kern_hyp_obs=hobs)
 
 
     # Frequency demodulation demo
@@ -73,8 +73,8 @@ def main():
     # hdyn = {'alpha': 10.0, 'el': 30.0 * np.ones(d, )}
     # hobs = {'alpha': 10.0, 'el': 30.0 * np.ones(d, )}
     # from models.demodulation import frequency_demodulation_filter_demo
-    # frequency_demodulation_filter_demo(GPQKalman, 'rbf', 'sr', kern_hyp_dyn=hdyn, kern_hyp_obs=hobs)
-    # frequency_demodulation_filter_demo(GPQMKalman, 'rbf', 'sr')
+    # frequency_demodulation_filter_demo(GPQKalman, 'rbf-ard', 'sr', kern_hyp_dyn=hdyn, kern_hyp_obs=hobs)
+    # frequency_demodulation_filter_demo(GPQMKalman, 'rbf-ard', 'sr')
 
 
 if __name__ == '__main__':

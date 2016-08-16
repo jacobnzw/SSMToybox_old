@@ -15,12 +15,17 @@ class Kernel(object, metaclass=ABCMeta):
     def __init__(self, dim, hypers, jitter):
         self.dim = dim
         self.jitter = jitter
+
         # check if supplied hypers are all supported by the kernel
         if hypers is not None:
             if not np.alltrue([hyp in list(hypers.keys()) for hyp in self._hyperparameters_]):
                 hypers = None
+
         # use default hypers if unspecified or if given some unsupported hyperparameter
         self.hypers = self._get_default_hyperparameters(dim) if hypers is None else hypers
+
+        # count hyperparameters
+        self.hypers_num = np.sum([np.alen(v) for v in self.hypers.values()])
 
     @staticmethod
     def _cho_inv(A, b=None):
@@ -79,17 +84,27 @@ class Kernel(object, metaclass=ABCMeta):
         pass
 
 
-class RBF(Kernel):
+class RBFARD(Kernel):
+    """
+    Radial Basis Function (RBF) kernel with Automatic Relevance Determination (ARD).
+
+    .. math::
+
+        k(x, x') = \alpha^2 \exp\left( -\tfrac{1}{2} (x - x')^{\top}\Lambda^{-1}(x - x') \right)
+
+    where :math: \Lambda = \mathrm{diag}([\ell_1, \ldots, \ell_d]).
+    """
     _hyperparameters_ = ['alpha', 'el']
 
     def __init__(self, dim, hypers=None, jitter=1e-8):
-        super(RBF, self).__init__(dim, hypers, jitter)
+        super(RBFARD, self).__init__(dim, hypers, jitter)
         self.alpha = self.hypers['alpha']
         el = np.atleast_1d(self.hypers['el'])
         if len(el) == 1 and dim > 1:
-            # if el is a list/tuple/array w/ 1 element and dim > 1
+            # if el is a list/tuple/array containing 1 element and dim > 1
             el = el[0] * np.ones(dim, )
         self.el = el
+
         # pre-computation for convenience
         self.lam = np.diag(self.el ** 2)
         self.inv_lam = np.diag(self.el ** -2)
@@ -171,7 +186,6 @@ class RBF(Kernel):
     def _get_hyperparameters(self, hyp=None):
         # if new hypers are given return them, if not return the initial hypers
         if hyp is None:
-            # return alpha and sqrt_inv_lambda
             return self.alpha, self.sqrt_inv_lam
         else:
             hyp = np.asarray(hyp)
@@ -180,16 +194,45 @@ class RBF(Kernel):
     def _maha(self, x, y, V=None):
         """
         Pair-wise Mahalanobis distance of rows of x and y with given weight matrix V.
-        :param x: (n, d) matrix of row vectors
-        :param y: (n, d) matrix of row vectors
-        :param V: weight matrix (d, d), if V=None, V=eye(d) is used
-        :return:
+
+        Parameters
+        ----------
+        x: (n, d) matrix of row vectors
+        y: (n, d) matrix of row vectors
+        V: weight matrix (d, d), if V=None, V=eye(d) is used
+
+        Returns
+        -------
+
         """
         if V is None:
             V = np.eye(x.shape[1])
         x2V = np.sum(x.dot(V) * x, 1)
         y2V = np.sum(y.dot(V) * y, 1)
         return (x2V[:, na] + y2V[:, na].T) - 2 * x.dot(V).dot(y.T)
+
+
+class RBF(RBFARD):
+    """
+    Radial Basis Function (RBF) kernel without Automatic Relevance Determination (ARD).
+
+    .. math::
+
+        k(x, x') = \alpha^2 \exp\left( -\tfrac{1}{2} (x - x')^{\top}\Lambda^{-1}(x - x') \right)
+
+    where :math: \Lambda = \ell^{-2} * I.
+    """
+    _hyperparameters_ = ['alpha', 'el']
+
+    def _get_default_hyperparameters(self, dim):
+        return {'alpha': 1.0, 'el': 1.0}
+
+    def _get_hyperparameters(self, hyp=None):
+        if hyp is None:
+            return self.alpha, self.sqrt_inv_lam
+        else:
+            hyp = np.asarray(hyp)
+            return hyp[0], hyp[1] ** -1 * self.eye_d
 
 
 class Affine(Kernel):

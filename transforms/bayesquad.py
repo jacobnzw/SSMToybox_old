@@ -15,6 +15,8 @@ class BQTransform(MomentTransform, metaclass=ABCMeta):
         self.d, self.n = self.model.points.shape
         # BQ transform weights for the mean, covariance and cross-covariance
         self.wm, self.Wc, self.Wcc = self._weights()
+        # Number of BQ transform parameters
+        self.param_num = self.model.kernel.hypers_num
 
     def apply(self, f, mean, cov, fcn_pars, tf_pars=None):
         # Re-compute weights if transform parameter tf_pars explicitly given
