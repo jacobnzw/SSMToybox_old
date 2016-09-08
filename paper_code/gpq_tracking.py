@@ -12,7 +12,7 @@ def reentry_gpq_demo():
     # Generate reference trajectory by ODE integration
     sys = ReentryRadar()
     mc_sims = 10
-    x = sys.simulate_trajectory(method='rk4', dt=0.05, duration=200, mc_sims=mc_sims)
+    x = sys.simulate_trajectory(method='rk4', dt=0.1, duration=200, mc_sims=mc_sims)
     x_ref = x.mean(axis=2)
     y = sys.simulate_measurements(x_ref, mc_per_step=mc_sims)
 
@@ -38,9 +38,10 @@ def reentry_gpq_demo():
     hobs = {'alpha': 1.0, 'el': [15.0, 15.0, 1e4, 1e4, 1e4]}
     alg = (GPQKalman(ssm, 'rbf', 'sr', hdyn, hobs),
            CubatureKalman(ssm),)
+    num_alg = len(alg)
 
-    d, steps = x.shape
-    mean, cov = np.zeros((d, steps, mc_sims)), np.zeros((d, d, steps, mc_sims))
+    d, steps = x_ref.shape
+    mean, cov = np.zeros((d, steps, mc_sims, num_alg)), np.zeros((d, d, steps, mc_sims, num_alg))
     for imc in range(mc_sims):
         for ia, a in enumerate(alg):
             mean[..., imc, ia], cov[..., imc, ia] = a.forward_pass(y[..., imc])
