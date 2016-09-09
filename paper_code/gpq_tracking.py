@@ -12,16 +12,16 @@ def reentry_gpq_demo():
     # Generate reference trajectory by ODE integration
     sys = ReentryRadar()
     mc_sims = 25
-    # x = sys.simulate_trajectory(method='rk4', dt=0.5, duration=200, mc_sims=mc_sims)
-    # x_ref = x.mean(axis=2)
-    # y = sys.simulate_measurements(x_ref, mc_per_step=mc_sims)
+    x = sys.simulate_trajectory(method='rk4', dt=0.5, duration=200, mc_sims=mc_sims)
+    x_ref = x.mean(axis=2)
+    y = sys.simulate_measurements(x[..., 0], mc_per_step=mc_sims)
 
     # Initialize filters
     ssm = ReentryRadarModel()
-    x, y = ssm.simulate(steps=750, mc_sims=10)
-    x_ref = x.mean(axis=2)
-    hdyn = {'alpha': 1.0, 'el': 25*np.ones(5,)}
-    hobs = {'alpha': 1.0, 'el': [25.0, 25.0, 1e4, 1e4, 1e4]}
+    # x, y = ssm.simulate(steps=750, mc_sims=10)
+    # x_ref = x.mean(axis=2)
+    hdyn = {'alpha': 1.0, 'el': 10*np.ones(5,)}
+    hobs = {'alpha': 1.0, 'el': [25.0, 25.0, 1e1, 1e1, 1e1]}
     alg = (GPQKalman(ssm, 'rbf', 'ut', hdyn, hobs),
            UnscentedKalman(ssm),)
     num_alg = len(alg)
@@ -43,9 +43,15 @@ def reentry_gpq_demo():
     plt.plot(sys.R0 * np.cos(t), sys.R0 * np.sin(t), color='darkblue', lw=2)
     plt.plot(sys.sx, sys.sy, 'ko')
 
+    plt.plot(x_ref[0, :], x_ref[1, :], color='r', ls='--')
+    # Convert from polar to cartesian
+    meas = np.stack((sys.sx + y[0, ...] * np.cos(y[1, ...]), sys.sy + y[0, ...] * np.sin(y[1, ...])), axis=0)
     for i in range(mc_sims):
         # Vehicle trajectory
-        plt.plot(x[0, :, i], x[1, :, i], alpha=0.35, color='r', ls='--')
+        # plt.plot(x[0, :, i], x[1, :, i], alpha=0.35, color='r', ls='--')
+
+        # Plot measurements
+        plt.plot(meas[0, :, i], meas[1, :, i], 'k.', alpha=0.3)
 
         # Filtered position estimate
         plt.plot(mean[0, 1:, i, 0], mean[1, 1:, i, 0], color='g', alpha=0.3)
@@ -56,7 +62,7 @@ def reentry_gpq_demo():
     for k in range(steps):
         for imc in range(mc_sims):
             for a in range(num_alg):
-                error2[:, k, imc, a] = squared_error(x_ref[:, k], mean[:, k, imc, a])
+                error2[:, k, imc, a] = squared_error(x[:, k, 0], mean[:, k, imc, a])
     pos_rmse_vs_time = np.sqrt((error2[:2, ...]).sum(axis=0)).mean(axis=1)
     plt.subplot(g[:, 2:])
     plt.plot(pos_rmse_vs_time[:, 0], label='gpqkf', color='g')
