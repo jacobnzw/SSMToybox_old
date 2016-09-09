@@ -9,21 +9,28 @@ from models.tracking import ReentryRadar as ReentryRadarModel
 
 
 def reentry_gpq_demo():
+    mc_sims = 10
+    disc_tau = 0.5  # discretization period
     # Generate reference trajectory by ODE integration
     sys = ReentryRadar()
-    mc_sims = 25
-    x = sys.simulate_trajectory(method='rk4', dt=0.5, duration=200, mc_sims=mc_sims)
+    x = sys.simulate_trajectory(method='rk4', dt=disc_tau, duration=200, mc_sims=mc_sims)
     x_ref = x.mean(axis=2)
-    y = sys.simulate_measurements(x[..., 0], mc_per_step=mc_sims)
+    y = np.zeros((sys.zD,) + x.shape[1:])
+    for i in range(mc_sims):
+        y[..., i] = sys.simulate_measurements(x[..., i], mc_per_step=1).squeeze()
 
-    # Initialize filters
-    ssm = ReentryRadarModel()
+    # Initialize model
+    ssm = ReentryRadarModel(dt=disc_tau)
     # x, y = ssm.simulate(steps=750, mc_sims=10)
     # x_ref = x.mean(axis=2)
-    hdyn = {'alpha': 1.0, 'el': 10*np.ones(5,)}
-    hobs = {'alpha': 1.0, 'el': [25.0, 25.0, 1e1, 1e1, 1e1]}
-    alg = (GPQKalman(ssm, 'rbf', 'ut', hdyn, hobs),
-           UnscentedKalman(ssm),)
+
+    # Initialize filters
+    hdyn = {'alpha': 1.0, 'el': 5 * [25.0]}
+    hobs = {'alpha': 1.0, 'el': [25.0, 25.0, 1e4, 1e4, 1e4]}
+    alg = (
+        GPQKalman(ssm, 'rbf', 'ut', hdyn, hobs),
+        UnscentedKalman(ssm),
+    )
     num_alg = len(alg)
 
     d, steps, mc_sims = x.shape
@@ -62,7 +69,7 @@ def reentry_gpq_demo():
     for k in range(steps):
         for imc in range(mc_sims):
             for a in range(num_alg):
-                error2[:, k, imc, a] = squared_error(x[:, k, 0], mean[:, k, imc, a])
+                error2[:, k, imc, a] = squared_error(x[:, k, imc], mean[:, k, imc, a])
     pos_rmse_vs_time = np.sqrt((error2[:2, ...]).sum(axis=0)).mean(axis=1)
     plt.subplot(g[:, 2:])
     plt.plot(pos_rmse_vs_time[:, 0], label='gpqkf', color='g')
