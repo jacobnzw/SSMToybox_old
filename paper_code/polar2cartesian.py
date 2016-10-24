@@ -26,13 +26,16 @@ def gpq_polar2cartesian_demo():
     dim = 2
 
     # Initialize transforms
-    tf_gpq = GPQ(dim, 'rbf', 'sr', {'alpha': 1.0, 'el': 6.0})
+    # high el[0], because the function is linear given x[1]
+    tf_gpq = GPQ(dim, 'rbf', 'sr', {'alpha': 1.0, 'el': [60, 6]})
     tf_sr = SphericalRadial(dim)
     tf_mc = MonteCarlo(dim, n=1e4)  # 10k samples
 
     # Input mean and covariance
-    mean_in = np.array([1, np.pi / 2])
-    cov_in = np.diag([0.05 ** 2, (np.pi / 10) ** 2])
+    # mean_in = np.array([1, np.pi / 2])
+    mean_in = np.array([10, 0])
+    # cov_in = np.diag([0.05 ** 2, (np.pi / 10) ** 2])
+    cov_in = np.diag([0.5, (5*np.pi/180)**2])
 
     # Mapped samples
     x = np.random.multivariate_normal(mean_in, cov_in, size=int(1e3)).T
