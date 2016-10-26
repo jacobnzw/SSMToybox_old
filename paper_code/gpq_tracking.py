@@ -66,14 +66,20 @@ def reentry_gpq_demo():
 
     # Performance score plots
     error2 = mean.copy()
-    for k in range(steps):
-        for imc in range(mc_sims):
-            for a in range(num_alg):
+    lcr = np.zeros((steps, mc_sims, num_alg))
+    for a in range(num_alg):
+        for k in range(steps):
+            mse = mse_matrix(x[:, k, :], mean[:, k, :, a])
+            for imc in range(mc_sims):
                 error2[:, k, imc, a] = squared_error(x[:, k, imc], mean[:, k, imc, a])
+                lcr[k, imc, a] = log_cred_ratio(x[:, k, imc], mean[:, k, imc, a], cov[..., k, imc, a], mse)
     pos_rmse_vs_time = np.sqrt((error2[:2, ...]).sum(axis=0)).mean(axis=1)
+    inc_ind_vs_time = lcr.mean(axis=1)
     plt.subplot(g[:, 2:])
     plt.plot(pos_rmse_vs_time[:, 0], label='gpqkf', color='g')
     plt.plot(pos_rmse_vs_time[:, 1], label='ukf', color='orange')
+    plt.plot(inc_ind_vs_time[:, 0], label='$I^2$ GPQKF')
+    plt.plot(inc_ind_vs_time[:, 1], label='$I^2$ UKF')
     plt.legend()
     plt.show()
 
