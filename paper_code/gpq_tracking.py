@@ -9,8 +9,9 @@ from models.tracking import ReentryRadar as ReentryRadarModel
 
 
 def reentry_gpq_demo():
-    mc_sims = 10
+    mc_sims = 20
     disc_tau = 0.5  # discretization period
+
     # Generate reference trajectory by ODE integration
     sys = ReentryRadar()
     x = sys.simulate_trajectory(method='rk4', dt=disc_tau, duration=200, mc_sims=mc_sims)
@@ -31,8 +32,11 @@ def reentry_gpq_demo():
         GPQKalman(ssm, 'rbf', 'ut', hdyn, hobs),
         UnscentedKalman(ssm),
     )
-    num_alg = len(alg)
 
+    # Are both filters using the same sigma-points?
+    # assert np.array_equal(alg[0].tf_dyn.model.points, alg[1].tf_dyn.unit_sp)
+
+    num_alg = len(alg)
     d, steps, mc_sims = x.shape
     mean, cov = np.zeros((d, steps, mc_sims, num_alg)), np.zeros((d, d, steps, mc_sims, num_alg))
     for imc in range(mc_sims):
@@ -69,21 +73,30 @@ def reentry_gpq_demo():
     lcr = np.zeros((steps, mc_sims, num_alg))
     for a in range(num_alg):
         for k in range(steps):
-            mse = mse_matrix(x[:, k, :], mean[:, k, :, a])
+            mse = mse_matrix(x[:4, k, :], mean[:4, k, :, a])
             for imc in range(mc_sims):
                 error2[:, k, imc, a] = squared_error(x[:, k, imc], mean[:, k, imc, a])
-                lcr[k, imc, a] = log_cred_ratio(x[:, k, imc], mean[:, k, imc, a], cov[..., k, imc, a], mse)
+                lcr[k, imc, a] = log_cred_ratio(x[:4, k, imc], mean[:4, k, imc, a], cov[:4, :4, k, imc, a], mse)
+
+    # Averaged RMSE and Inclination Indicator in time
     pos_rmse_vs_time = np.sqrt((error2[:2, ...]).sum(axis=0)).mean(axis=1)
     inc_ind_vs_time = lcr.mean(axis=1)
-    plt.subplot(g[:, 2:])
-    plt.plot(pos_rmse_vs_time[:, 0], label='gpqkf', color='g')
-    plt.plot(pos_rmse_vs_time[:, 1], label='ukf', color='orange')
-    plt.plot(inc_ind_vs_time[:, 0], label='$I^2$ GPQKF')
-    plt.plot(inc_ind_vs_time[:, 1], label='$I^2$ UKF')
+
+    # Plots
+    plt.subplot(g[0, 2:])
+    plt.title('RMSE')
+    plt.plot(pos_rmse_vs_time[:, 0], label='GPQKF', color='g')
+    plt.plot(pos_rmse_vs_time[:, 1], label='UKF', color='r')
+    plt.legend()
+    plt.subplot(g[1, 2:])
+    plt.title('Inclination Indicator $I^2$')
+    plt.plot(inc_ind_vs_time[:, 0], label='GPQKF', color='g')
+    plt.plot(inc_ind_vs_time[:, 1], label='UKF', color='r')
     plt.legend()
     plt.show()
 
-    print(pos_rmse_vs_time.mean(axis=0))
+    print('Average RMSE: {}'.format(pos_rmse_vs_time.mean(axis=0)))
+    print('Average I2: {}'.format(inc_ind_vs_time.mean(axis=0)))
 
 if __name__ == '__main__':
     reentry_gpq_demo()
