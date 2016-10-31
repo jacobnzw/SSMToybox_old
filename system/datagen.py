@@ -406,6 +406,84 @@ class ReentryRadar(System):
         pass
 
 
+class ReentryRadarSimple(System):
+    """
+    Radar tracking of the reentry vehicle as described in [1]_.
+    High velocity projectile is entering atmosphere, radar positioned 100,000ft above Earth's surface (and 100,
+    000ft horizontally) is producing range measurements.
+
+    State
+    -----
+    [p, v, x5]
+    p - altitude,
+    v - velocity,
+    x5 - aerodynamic parameter
+
+    Measurements
+    ------------
+    range and bearing
+
+
+    References
+    ----------
+    .. [1] [1] S. J. Julier, J. K. Uhlmann, and H. F. Durrant-Whyte, "A New Method for the Nonlinear Transformation
+    of Means and Covariances in Filters and Estimators," IEEE Trans. Automat. Contr., vol. 45, no. 3, pp. 477–482, 2000.
+
+    """
+
+    xD = 3
+    zD = 1  # measurement dimension
+    qD = 3
+    rD = 1  # measurement noise dimension
+    q_additive = True
+    r_additive = True
+
+    R0 = 2.0925e7  # Earth's radius [ft]
+    # radar location: 30km (~100k ft) above the surface, radar-to-body horizontal range
+    sx, sy = 1e5, 1e5
+    Gamma = 5e-5
+
+    def __init__(self):
+        """
+
+        Parameters
+        ----------
+        dt :
+            time interval between two consecutive measurements
+        """
+        kwargs = {
+            'x0_mean': np.array([3e5, 2e4, 1e-3]),  # ft, ft/s
+            'x0_cov': np.diag([1e-6, 4e-6, 1e-4]),  # ft^2, ft^2/s^2
+            'q_mean': np.zeros(self.qD),
+            'q_cov': np.array([[0, 0, 0],
+                               [0, 0, 0],
+                               [0, 0, 0]]),
+            'r_mean': np.zeros(self.rD),
+            'r_cov': np.array([[1e4]]),
+            'q_factor': np.vstack(np.eye(3))
+        }
+        super(ReentryRadarSimple, self).__init__(**kwargs)
+
+    def dyn_fcn(self, x, q, pars):
+        return np.array([-x[1] + q[0],
+                         -np.exp(-self.Gamma * x[0]) * x[1]**2 * x[2] + q[1],
+                         q[2]])
+
+    def meas_fcn(self, x, r, pars):
+        # range
+        rng = np.sqrt(self.sx ** 2 + (x[0] - self.sy) ** 2)
+        return np.array([rng]) + r
+
+    def par_fcn(self, time):
+        pass
+
+    def dyn_fcn_dx(self, x, q, pars):
+        pass
+
+    def meas_fcn_dx(self, x, r, pars):
+        pass
+
+
 def radar_tracking_demo():
     import matplotlib.pyplot as plt
     from matplotlib.gridspec import GridSpec
@@ -430,5 +508,42 @@ def radar_tracking_demo():
     plt.show()
 
 
+def radar_tracking_reentry_simple_demo():
+    import matplotlib.pyplot as plt
+    from matplotlib.gridspec import GridSpec
+
+    sys = ReentryRadarSimple()
+    mc = 1
+    dur = 30
+    x = sys.simulate_trajectory(method='rk4', dt=0.1, duration=dur, mc_sims=mc)
+
+    plt.figure()
+    g = GridSpec(4, 2)
+    plt.subplot(g[:2, :])
+    # Earth surface w/ radar position
+    t = np.arange(0.45*np.pi, 0.55*np.pi, 0.01)
+    plt.plot(sys.R0 * np.cos(t), sys.R0 * np.sin(t) - sys.R0, 'darkblue', lw=2)
+    plt.plot(sys.sx, sys.sy, 'ko')
+
+    # vehicle trajectory
+    xzer = np.zeros(x.shape[1])
+    for i in range(mc):
+        plt.plot(xzer, x[0, :, i], alpha=0.35, color='r', ls='--', lw=2)
+
+    x0 = sys.pars['x0_mean']
+    plt.subplot(g[2, :])
+    plt.title('Altitude')
+    plt.ylim([0, x0[0]])
+    for i in range(mc):
+        plt.plot(np.linspace(1, dur, x.shape[1]), x[0, :, i], alpha=0.35, color='b')
+
+    plt.subplot(g[3, :])
+    plt.title('Velocity')
+    plt.ylim([0, x0[1]])
+    for i in range(mc):
+        plt.plot(np.linspace(1, dur, x.shape[1]), x[1, :, i], alpha=0.35, color='b')
+    plt.show()
+
+
 if __name__ == '__main__':
-    radar_tracking_demo()
+    radar_tracking_reentry_simple_demo()
