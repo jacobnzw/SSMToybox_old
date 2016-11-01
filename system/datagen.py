@@ -426,7 +426,7 @@ class ReentryRadarSimple(System):
 
     References
     ----------
-    .. [1] [1] S. J. Julier, J. K. Uhlmann, and H. F. Durrant-Whyte, "A New Method for the Nonlinear Transformation
+    .. [1] S. J. Julier, J. K. Uhlmann, and H. F. Durrant-Whyte, "A New Method for the Nonlinear Transformation
     of Means and Covariances in Filters and Estimators," IEEE Trans. Automat. Contr., vol. 45, no. 3, pp. 477–482, 2000.
 
     """
@@ -453,7 +453,7 @@ class ReentryRadarSimple(System):
         """
         kwargs = {
             'x0_mean': np.array([3e5, 2e4, 1e-3]),  # ft, ft/s
-            'x0_cov': np.diag([1e-6, 4e-6, 1e-4]),  # ft^2, ft^2/s^2
+            'x0_cov': np.diag([1e6, 4e6, 1e-4]),  # ft^2, ft^2/s^2
             'q_mean': np.zeros(self.qD),
             'q_cov': np.array([[0, 0, 0],
                                [0, 0, 0],
@@ -513,35 +513,42 @@ def radar_tracking_reentry_simple_demo():
     from matplotlib.gridspec import GridSpec
 
     sys = ReentryRadarSimple()
-    mc = 1
+    mc = 10
     dur = 30
-    x = sys.simulate_trajectory(method='rk4', dt=0.1, duration=dur, mc_sims=mc)
+    x = sys.simulate_trajectory(method='rk4', dt=0.01, duration=dur, mc_sims=mc)
 
     plt.figure()
     g = GridSpec(4, 2)
     plt.subplot(g[:2, :])
     # Earth surface w/ radar position
-    t = np.arange(0.45*np.pi, 0.55*np.pi, 0.01)
+    t = np.arange(0.48*np.pi, 0.52*np.pi, 0.01)
     plt.plot(sys.R0 * np.cos(t), sys.R0 * np.sin(t) - sys.R0, 'darkblue', lw=2)
     plt.plot(sys.sx, sys.sy, 'ko')
 
     # vehicle trajectory
     xzer = np.zeros(x.shape[1])
     for i in range(mc):
-        plt.plot(xzer, x[0, :, i], alpha=0.35, color='r', ls='--', lw=2)
+        if not x[0, :, i].min() == -np.inf:
+            plt.plot(xzer, x[0, :, i], alpha=0.35, color='r', ls='--', lw=2)
 
+    # altitude
     x0 = sys.pars['x0_mean']
     plt.subplot(g[2, :])
-    plt.title('Altitude')
     plt.ylim([0, x0[0]])
     for i in range(mc):
-        plt.plot(np.linspace(1, dur, x.shape[1]), x[0, :, i], alpha=0.35, color='b')
+        if not x[0, :, i].min() == -np.inf:
+            plt.plot(np.linspace(1, dur, x.shape[1]), x[0, :, i], alpha=0.35, color='b')
+    plt.ylabel('altitude [ft]')
+    plt.xlabel('time [s]')
 
+    # velocity
     plt.subplot(g[3, :])
-    plt.title('Velocity')
     plt.ylim([0, x0[1]])
     for i in range(mc):
-        plt.plot(np.linspace(1, dur, x.shape[1]), x[1, :, i], alpha=0.35, color='b')
+        if not x[0, :, i].min() == -np.inf:
+            plt.plot(np.linspace(1, dur, x.shape[1]), x[1, :, i], alpha=0.35, color='b')
+    plt.ylabel('velocity [ft/s]')
+    plt.xlabel('time [s]')
     plt.show()
 
 
