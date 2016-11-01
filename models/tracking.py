@@ -342,6 +342,84 @@ class ReentryRadar(StateSpaceModel):
         pass
 
 
+class ReentryRadarSimple(StateSpaceModel):
+    """
+    Radar tracking of the reentry vehicle as described in [1]_.
+    Vehicle is entering Earth's atmosphere at high altitude and with great speed, ground radar is tracking it.
+
+    State
+    -----
+    [px, py, vx, vy, x5]
+    (px, py) - position,
+    (vx, vy) - velocity,
+    x5 - aerodynamic parameter
+
+    Measurements
+    ------------
+    range and bearing
+
+
+    References
+    ----------
+    .. [1] Julier, S. J., & Uhlmann, J. K. (2004). Unscented Filtering and Nonlinear Estimation.
+           Proceedings of the IEEE, 92(3), 401-422
+
+    """
+
+    xD = 3
+    zD = 1  # measurement dimension
+    qD = 3
+    rD = 1  # measurement noise dimension
+    q_additive = True
+    r_additive = True
+
+    R0 = 2.0925e7  # Earth's radius [ft]
+    # radar location: 30km (~100k ft) above the surface, radar-to-body horizontal range
+    sx, sy = 1e5, 1e5
+    Gamma = 5e-5
+
+    def __init__(self, dt=0.1):
+        """
+
+        Parameters
+        ----------
+        dt :
+            time interval between two consecutive measurements
+        """
+        self.dt = dt
+        kwargs = {
+            'x0_mean': np.array([3e5, 2e4, 3e-3]),  # ft, ft/s
+            'x0_cov': np.diag([1e6, 4e6, 1e-4]),  # ft^2, ft^2/s^2
+            'q_mean': np.zeros(self.qD),
+            'q_cov': np.array([[0, 0, 0],
+                               [0, 0, 0],
+                               [0, 0, 0]]),
+            'r_mean': np.zeros(self.rD),
+            'r_cov': np.array([[1e4]]),
+            'q_factor': np.vstack(np.eye(3))
+        }
+        super(ReentryRadarSimple, self).__init__(**kwargs)
+
+    def dyn_fcn(self, x, q, pars):
+        return np.array([x[0] - self.dt * x[1] + q[0],
+                         x[1] - self.dt * np.exp(-self.Gamma*x[0])*x[1]**2*x[2] + q[1],
+                         x[2] + q[2]])
+
+    def meas_fcn(self, x, r, pars):
+        # range
+        rng = np.sqrt(self.sx ** 2 + (x[0] - self.sy) ** 2)
+        return np.array([rng]) + r
+
+    def par_fcn(self, time):
+        pass
+
+    def dyn_fcn_dx(self, x, q, pars):
+        pass
+
+    def meas_fcn_dx(self, x, r, pars):
+        pass
+
+
 def bot_demo(steps=100, mc_sims=1):
     ssm = CoordinatedTurnBOT()
     x, z = ssm.simulate(steps, mc_sims=mc_sims)
