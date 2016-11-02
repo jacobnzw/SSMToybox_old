@@ -101,8 +101,8 @@ def reentry_gpq_demo():
 
 
 def reentry_simple_gpq_demo():
-    mc = 10
-    disc_tau = 0.1  # discretization period
+    mc = 100
+    disc_tau = 0.05  # discretization period
     dur = 30  # duration
 
     # Generate reference trajectory by ODE integration
@@ -156,12 +156,15 @@ def reentry_simple_gpq_demo():
         plt.plot(xzer, mean[0, :, i, 0], color='g', alpha=0.3)
         # plt.plot(xzer, mean[0, :, i, 1], color='orange', alpha=0.3)
 
+    # time index for plotting
+    time_ind = np.linspace(1, dur, x.shape[1])
+
     # Altitude
     x0 = sys.pars['x0_mean']
     plt.subplot(g[2, :])
     plt.ylim([0, x0[0]])
     for i in range(mc):
-        plt.plot(np.linspace(1, dur, x.shape[1]), x[0, :, i], alpha=0.35, color='b')
+        plt.plot(time_ind, x[0, :, i], alpha=0.35, color='b')
     plt.ylabel('altitude [ft]')
     plt.xlabel('time [s]')
 
@@ -169,7 +172,7 @@ def reentry_simple_gpq_demo():
     plt.subplot(g[3, :])
     plt.ylim([0, x0[1]])
     for i in range(mc):
-        plt.plot(np.linspace(1, dur, x.shape[1]), x[1, :, i], alpha=0.35, color='b')
+        plt.plot(time_ind, x[1, :, i], alpha=0.35, color='b')
     plt.ylabel('velocity [ft/s]')
     plt.xlabel('time [s]')
 
@@ -190,17 +193,17 @@ def reentry_simple_gpq_demo():
 
     # PLOTS: Performance Scores
     plt.figure()
-    g = GridSpec(3, 3)
+    g = GridSpec(2, 3)
 
-    plt.subplot(g[1, :2])
+    plt.subplot(g[0, :2])
     plt.title('RMSE')
-    plt.plot(pos_rmse_vs_time[:, 0], label='GPQKF', color='g')
+    plt.plot(time_ind, pos_rmse_vs_time[:, 0], label='GPQKF', color='g')
     # plt.plot(pos_rmse_vs_time[:, 1], label='UKF', color='r')
     plt.legend()
 
-    plt.subplot(g[2, :2])
+    plt.subplot(g[1, :2])
     plt.title('Inclination Indicator $I^2$')
-    plt.plot(inc_ind_vs_time[:, 0], label='GPQKF', color='g')
+    plt.plot(time_ind, inc_ind_vs_time[:, 0], label='GPQKF', color='g')
     # plt.plot(inc_ind_vs_time[:, 1], label='UKF', color='r')
     plt.legend()
 
