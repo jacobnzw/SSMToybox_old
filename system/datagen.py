@@ -441,7 +441,7 @@ class ReentryRadarSimple(System):
     R0 = 6371  # Earth's radius [km]  #2.0925e7  # Earth's radius [ft]
     # radar location: 30km (~100k ft) above the surface, radar-to-body horizontal range
     sx, sy = 30, 30
-    Gamma = 5e-5
+    Gamma = 1/6.096
 
     def __init__(self):
         """
@@ -452,7 +452,7 @@ class ReentryRadarSimple(System):
             time interval between two consecutive measurements
         """
         kwargs = {
-            'x0_mean': np.array([91.44, 6.096, 1e-3]),  # ft, ft/s
+            'x0_mean': np.array([91.44, 6.096, 1.5]),  # ft, ft/s
             'x0_cov': np.diag([0.3048**2, 1.2192**2, 1e-4]),  # ft^2, ft^2/s^2
             'q_mean': np.zeros(self.qD),
             'q_cov': np.array([[0, 0, 0],
