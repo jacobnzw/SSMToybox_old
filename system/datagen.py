@@ -438,9 +438,9 @@ class ReentryRadarSimple(System):
     q_additive = True
     r_additive = True
 
-    R0 = 2.0925e7  # Earth's radius [ft]
+    R0 = 6371  # Earth's radius [km]  #2.0925e7  # Earth's radius [ft]
     # radar location: 30km (~100k ft) above the surface, radar-to-body horizontal range
-    sx, sy = 1e5, 1e5
+    sx, sy = 30, 30
     Gamma = 5e-5
 
     def __init__(self):
@@ -452,14 +452,14 @@ class ReentryRadarSimple(System):
             time interval between two consecutive measurements
         """
         kwargs = {
-            'x0_mean': np.array([3e5, 2e4, 1e-3]),  # ft, ft/s
-            'x0_cov': np.diag([1e6, 4e6, 1e-4]),  # ft^2, ft^2/s^2
+            'x0_mean': np.array([91.44, 6.096, 1e-3]),  # ft, ft/s
+            'x0_cov': np.diag([0.3048**2, 1.2192**2, 1e-4]),  # ft^2, ft^2/s^2
             'q_mean': np.zeros(self.qD),
             'q_cov': np.array([[0, 0, 0],
                                [0, 0, 0],
                                [0, 0, 0]]),
             'r_mean': np.zeros(self.rD),
-            'r_cov': np.array([[1e4]]),
+            'r_cov': np.array([[0.03048**2]]),
             'q_factor': np.vstack(np.eye(3))
         }
         super(ReentryRadarSimple, self).__init__(**kwargs)
@@ -513,7 +513,7 @@ def radar_tracking_reentry_simple_demo():
     from matplotlib.gridspec import GridSpec
 
     sys = ReentryRadarSimple()
-    mc = 10
+    mc = 100
     dur = 30
     x = sys.simulate_trajectory(method='rk4', dt=0.1, duration=dur, mc_sims=mc)
 
