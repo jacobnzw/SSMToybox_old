@@ -101,8 +101,8 @@ def reentry_gpq_demo():
 
 
 def reentry_simple_gpq_demo():
-    mc = 100
-    disc_tau = 0.05  # discretization period
+    mc = 50
+    disc_tau = 0.1  # discretization period
     dur = 30  # duration
 
     # Generate reference trajectory by ODE integration
@@ -124,7 +124,7 @@ def reentry_simple_gpq_demo():
     hdyn = {'alpha': 1.0, 'el': 3 * [10.0]}
     hobs = {'alpha': 1.0, 'el': 3 * [10.0]}
     alg = (
-        # GPQKalman(ssm, 'rbf', 'ut', hdyn, hobs),
+        GPQKalman(ssm, 'rbf', 'ut', hdyn, hobs),
         UnscentedKalman(ssm),
     )
 
@@ -154,7 +154,7 @@ def reentry_simple_gpq_demo():
 
         # Filtered position estimate
         plt.plot(xzer, mean[0, :, i, 0], color='g', alpha=0.3)
-        # plt.plot(xzer, mean[0, :, i, 1], color='orange', alpha=0.3)
+        plt.plot(xzer, mean[0, :, i, 1], color='orange', alpha=0.3)
 
     # time index for plotting
     time_ind = np.linspace(1, dur, x.shape[1])
@@ -198,21 +198,21 @@ def reentry_simple_gpq_demo():
     plt.subplot(g[0, :2])
     plt.title('RMSE')
     plt.plot(time_ind, pos_rmse_vs_time[:, 0], label='GPQKF', color='g')
-    # plt.plot(pos_rmse_vs_time[:, 1], label='UKF', color='r')
+    plt.plot(time_ind, pos_rmse_vs_time[:, 1], label='UKF', color='r')
     plt.legend()
 
     plt.subplot(g[1, :2])
     plt.title('Inclination Indicator $I^2$')
     plt.plot(time_ind, inc_ind_vs_time[:, 0], label='GPQKF', color='g')
-    # plt.plot(inc_ind_vs_time[:, 1], label='UKF', color='r')
+    plt.plot(time_ind, inc_ind_vs_time[:, 1], label='UKF', color='r')
     plt.legend()
 
     # Box plots of time-averaged scores
     plt.subplot(g[0, 2:])
-    plt.boxplot(rmse[..., 0].mean(axis=0))
+    plt.boxplot(rmse.mean(axis=0), labels=['GPQKF', 'UKF'])
 
     plt.subplot(g[1, 2:])
-    plt.boxplot(lcr[..., 0].mean(axis=0))
+    plt.boxplot(lcr.mean(axis=0), labels=['GPQKF', 'UKF'])
 
     plt.show()
 
