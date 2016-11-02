@@ -515,7 +515,11 @@ def radar_tracking_reentry_simple_demo():
     sys = ReentryRadarSimple()
     mc = 10
     dur = 30
-    x = sys.simulate_trajectory(method='rk4', dt=0.01, duration=dur, mc_sims=mc)
+    x = sys.simulate_trajectory(method='rk4', dt=0.1, duration=dur, mc_sims=mc)
+
+    # pick only non-divergent trajectories
+    x = x[..., np.all(x >= 0, axis=(0, 1))]
+    mc = x.shape[2]
 
     plt.figure()
     g = GridSpec(4, 2)
@@ -528,16 +532,14 @@ def radar_tracking_reentry_simple_demo():
     # vehicle trajectory
     xzer = np.zeros(x.shape[1])
     for i in range(mc):
-        if not x[0, :, i].min() == -np.inf:
-            plt.plot(xzer, x[0, :, i], alpha=0.35, color='r', ls='--', lw=2)
+        plt.plot(xzer, x[0, :, i], alpha=0.35, color='r', ls='--', lw=2)
 
     # altitude
     x0 = sys.pars['x0_mean']
     plt.subplot(g[2, :])
     plt.ylim([0, x0[0]])
     for i in range(mc):
-        if not x[0, :, i].min() == -np.inf:
-            plt.plot(np.linspace(1, dur, x.shape[1]), x[0, :, i], alpha=0.35, color='b')
+        plt.plot(np.linspace(1, dur, x.shape[1]), x[0, :, i], alpha=0.35, color='b')
     plt.ylabel('altitude [ft]')
     plt.xlabel('time [s]')
 
@@ -545,8 +547,7 @@ def radar_tracking_reentry_simple_demo():
     plt.subplot(g[3, :])
     plt.ylim([0, x0[1]])
     for i in range(mc):
-        if not x[0, :, i].min() == -np.inf:
-            plt.plot(np.linspace(1, dur, x.shape[1]), x[1, :, i], alpha=0.35, color='b')
+        plt.plot(np.linspace(1, dur, x.shape[1]), x[1, :, i], alpha=0.35, color='b')
     plt.ylabel('velocity [ft/s]')
     plt.xlabel('time [s]')
     plt.show()
