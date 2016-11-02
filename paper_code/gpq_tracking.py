@@ -117,12 +117,14 @@ def reentry_simple_gpq_demo():
     for i in range(mc):
         y[..., i] = sys.simulate_measurements(x[..., i], mc_per_step=1).squeeze()
 
+    # GPQKF kernel parameters
+    hdyn = {'alpha': 1.0, 'el': 3 * [7]}
+    hobs = {'alpha': 1.0, 'el': [7, 20, 20]}
+
     # Initialize model
     ssm = ReentryRadarSimpleModel(dt=disc_tau)
 
     # Initialize filters
-    hdyn = {'alpha': 1.0, 'el': 3 * [10.0]}
-    hobs = {'alpha': 1.0, 'el': 3 * [10.0]}
     alg = (
         GPQKalman(ssm, 'rbf', 'ut', hdyn, hobs),
         UnscentedKalman(ssm),
