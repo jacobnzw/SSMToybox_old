@@ -101,21 +101,20 @@ def reentry_gpq_demo():
 
 
 def reentry_simple_gpq_demo():
-    mc_sims = 100
-    disc_tau = 0.05  # discretization period
+    mc = 10
+    disc_tau = 0.1  # discretization period
     dur = 30  # duration
 
     # Generate reference trajectory by ODE integration
     sys = ReentryRadarSimple()
-    x = sys.simulate_trajectory(method='rk4', dt=disc_tau, duration=dur, mc_sims=mc_sims)
+    x = sys.simulate_trajectory(method='rk4', dt=disc_tau, duration=dur, mc_sims=mc)
 
     # pick only non-divergent trajectories
-    x = x[..., np.all(np.abs(x) != np.inf, axis=(0, 1))]
-    mc_sims = x.shape[2]
+    x = x[..., np.all(x >= 0, axis=(0, 1))]
+    mc = x.shape[2]
 
-    x_ref = x.mean(axis=2)
     y = np.zeros((sys.zD,) + x.shape[1:])
-    for i in range(mc_sims):
+    for i in range(mc):
         y[..., i] = sys.simulate_measurements(x[..., i], mc_per_step=1).squeeze()
 
     # Initialize model
@@ -129,67 +128,89 @@ def reentry_simple_gpq_demo():
         UnscentedKalman(ssm),
     )
 
-    # Are both filters using the same sigma-points?
-    # assert np.array_equal(alg[0].tf_dyn.model.points, alg[1].tf_dyn.unit_sp)
-
     num_alg = len(alg)
-    d, steps, mc_sims = x.shape
-    mean, cov = np.zeros((d, steps, mc_sims, num_alg)), np.zeros((d, d, steps, mc_sims, num_alg))
-    for imc in range(mc_sims):
+    d, steps, mc = x.shape
+    mean, cov = np.zeros((d, steps, mc, num_alg)), np.zeros((d, d, steps, mc, num_alg))
+    for imc in range(mc):
         for ia, a in enumerate(alg):
+            # Do filtering and reset the filters for each new track
             mean[..., imc, ia], cov[..., imc, ia] = a.forward_pass(y[..., imc])
             a.reset()
 
-    # Plots
+    # PLOTS: Trajectories
     plt.figure()
-    g = GridSpec(2, 4)
-    plt.subplot(g[:, :2])
+    g = GridSpec(4, 2)
+    plt.subplot(g[:2, :])
 
     # Earth surface w/ radar position
     t = np.arange(0.48 * np.pi, 0.52 * np.pi, 0.01)
     plt.plot(sys.R0 * np.cos(t), sys.R0 * np.sin(t) - sys.R0, 'darkblue', lw=2)
     plt.plot(sys.sx, sys.sy, 'ko')
 
-    plt.plot(x_ref[0, :], x_ref[1, :], color='r', ls='--')
-    # Convert from polar to cartesian
-    # meas = np.stack((sys.sx + y[0, ...] * np.cos(y[1, ...]), sys.sy + y[0, ...] * np.sin(y[1, ...])), axis=0)
     xzer = np.zeros(x.shape[1])
-    for i in range(mc_sims):
+    for i in range(mc):
         # Vehicle trajectory
         plt.plot(xzer, x[0, :, i], alpha=0.35, color='r', ls='--', lw=2)
-
-        # Plot measurements
-        # plt.plot(meas[0, :, i], meas[1, :, i], 'k.', alpha=0.3)
 
         # Filtered position estimate
         plt.plot(xzer, mean[0, :, i, 0], color='g', alpha=0.3)
         # plt.plot(xzer, mean[0, :, i, 1], color='orange', alpha=0.3)
 
-    # Performance score plots
+    # Altitude
+    x0 = sys.pars['x0_mean']
+    plt.subplot(g[2, :])
+    plt.ylim([0, x0[0]])
+    for i in range(mc):
+        plt.plot(np.linspace(1, dur, x.shape[1]), x[0, :, i], alpha=0.35, color='b')
+    plt.ylabel('altitude [ft]')
+    plt.xlabel('time [s]')
+
+    # Velocity
+    plt.subplot(g[3, :])
+    plt.ylim([0, x0[1]])
+    for i in range(mc):
+        plt.plot(np.linspace(1, dur, x.shape[1]), x[1, :, i], alpha=0.35, color='b')
+    plt.ylabel('velocity [ft/s]')
+    plt.xlabel('time [s]')
+
+    # Compute Performance Scores
     error2 = mean.copy()
-    lcr = np.zeros((steps, mc_sims, num_alg))
+    lcr = np.zeros((steps, mc, num_alg))
     for a in range(num_alg):
         for k in range(steps):
             mse = mse_matrix(x[:1, k, :], mean[:1, k, :, a])
-            for imc in range(mc_sims):
+            for imc in range(mc):
                 error2[:, k, imc, a] = squared_error(x[:, k, imc], mean[:, k, imc, a])
                 lcr[k, imc, a] = log_cred_ratio(x[:1, k, imc], mean[:1, k, imc, a], cov[:1, :1, k, imc, a], mse)
 
     # Averaged RMSE and Inclination Indicator in time
-    pos_rmse_vs_time = np.sqrt((error2[:1, ...]).sum(axis=0)).mean(axis=1)
+    rmse = np.sqrt(error2[:1, ...].sum(axis=0))
+    pos_rmse_vs_time = rmse.mean(axis=1)
     inc_ind_vs_time = lcr.mean(axis=1)
 
-    # Plots
-    plt.subplot(g[0, 2:])
+    # PLOTS: Performance Scores
+    plt.figure()
+    g = GridSpec(3, 3)
+
+    plt.subplot(g[1, :2])
     plt.title('RMSE')
     plt.plot(pos_rmse_vs_time[:, 0], label='GPQKF', color='g')
     # plt.plot(pos_rmse_vs_time[:, 1], label='UKF', color='r')
     plt.legend()
-    plt.subplot(g[1, 2:])
+
+    plt.subplot(g[2, :2])
     plt.title('Inclination Indicator $I^2$')
     plt.plot(inc_ind_vs_time[:, 0], label='GPQKF', color='g')
     # plt.plot(inc_ind_vs_time[:, 1], label='UKF', color='r')
     plt.legend()
+
+    # Box plots of time-averaged scores
+    plt.subplot(g[0, 2:])
+    plt.boxplot(rmse[..., 0].mean(axis=0))
+
+    plt.subplot(g[1, 2:])
+    plt.boxplot(lcr[..., 0].mean(axis=0))
+
     plt.show()
 
     print('Average RMSE: {}'.format(pos_rmse_vs_time.mean(axis=0)))
