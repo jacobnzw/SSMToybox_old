@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
 from inference.gpquad import GPQKalman
 from inference.unscented import UnscentedKalman
+from inference.cubature import CubatureKalman
 from system.datagen import ReentryRadar, ReentryRadarSimple
 from models.tracking import ReentryRadar as ReentryRadarModel
 from models.tracking import ReentryRadarSimple as ReentryRadarSimpleModel
@@ -101,7 +102,7 @@ def reentry_gpq_demo():
 
 
 def reentry_simple_gpq_demo():
-    mc = 50
+    mc = 100
     disc_tau = 0.1  # discretization period
     dur = 30  # duration
 
@@ -118,16 +119,16 @@ def reentry_simple_gpq_demo():
         y[..., i] = sys.simulate_measurements(x[..., i], mc_per_step=1).squeeze()
 
     # GPQKF kernel parameters
-    hdyn = {'alpha': 1.0, 'el': 3 * [7]}
-    hobs = {'alpha': 1.0, 'el': [7, 20, 20]}
+    hdyn = {'alpha': 1.0, 'el': 3 * [15]}
+    hobs = {'alpha': 1.0, 'el': [15, 1e2, 1e2]}
 
     # Initialize model
     ssm = ReentryRadarSimpleModel(dt=disc_tau)
 
     # Initialize filters
     alg = (
-        GPQKalman(ssm, 'rbf', 'ut', hdyn, hobs),
-        UnscentedKalman(ssm),
+        GPQKalman(ssm, 'rbf', 'sr', hdyn, hobs),
+        CubatureKalman(ssm),
     )
 
     num_alg = len(alg)
@@ -244,8 +245,13 @@ def reentry_simple_gpq_demo():
 
     plt.show()
 
+    # TODO: pandas tables for printing into latex
+    print('{:=^30}'.format(' Position '))
     print('Average RMSE: {}'.format(pos_rmse_vs_time.mean(axis=0)))
     print('Average I2: {}'.format(pos_inc_vs_time.mean(axis=0)))
+    print('{:=^30}'.format(' Velocity '))
+    print('Average RMSE: {}'.format(vel_rmse_vs_time.mean(axis=0)))
+    print('Average I2: {}'.format(vel_inc_vs_time.mean(axis=0)))
 
 if __name__ == '__main__':
     # reentry_gpq_demo()
