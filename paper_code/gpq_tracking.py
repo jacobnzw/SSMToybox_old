@@ -139,87 +139,113 @@ def reentry_simple_gpq_demo():
             mean[..., imc, ia], cov[..., imc, ia] = a.forward_pass(y[..., imc])
             a.reset()
 
-    # PLOTS: Trajectories
-    plt.figure()
-    g = GridSpec(4, 2)
-    plt.subplot(g[:2, :])
-
-    # Earth surface w/ radar position
-    t = np.arange(0.48 * np.pi, 0.52 * np.pi, 0.01)
-    plt.plot(sys.R0 * np.cos(t), sys.R0 * np.sin(t) - sys.R0, 'darkblue', lw=2)
-    plt.plot(sys.sx, sys.sy, 'ko')
-
-    xzer = np.zeros(x.shape[1])
-    for i in range(mc):
-        # Vehicle trajectory
-        plt.plot(xzer, x[0, :, i], alpha=0.35, color='r', ls='--', lw=2)
-
-        # Filtered position estimate
-        plt.plot(xzer, mean[0, :, i, 0], color='g', alpha=0.3)
-        plt.plot(xzer, mean[0, :, i, 1], color='orange', alpha=0.3)
-
     # time index for plotting
     time_ind = np.linspace(1, dur, x.shape[1])
 
-    # Altitude
-    x0 = sys.pars['x0_mean']
-    plt.subplot(g[2, :])
-    plt.ylim([0, x0[0]])
-    for i in range(mc):
-        plt.plot(time_ind, x[0, :, i], alpha=0.35, color='b')
-    plt.ylabel('altitude [ft]')
-    plt.xlabel('time [s]')
+    # PLOTS: Trajectories
+    # plt.figure()
+    # g = GridSpec(4, 2)
+    # plt.subplot(g[:2, :])
+    #
+    # # Earth surface w/ radar position
+    # t = np.arange(0.48 * np.pi, 0.52 * np.pi, 0.01)
+    # plt.plot(sys.R0 * np.cos(t), sys.R0 * np.sin(t) - sys.R0, 'darkblue', lw=2)
+    # plt.plot(sys.sx, sys.sy, 'ko')
+    #
+    # xzer = np.zeros(x.shape[1])
+    # for i in range(mc):
+    #     # Vehicle trajectory
+    #     plt.plot(xzer, x[0, :, i], alpha=0.35, color='r', ls='--', lw=2)
+    #
+    #     # Filtered position estimate
+    #     plt.plot(xzer, mean[0, :, i, 0], color='g', alpha=0.3)
+    #     plt.plot(xzer, mean[0, :, i, 1], color='orange', alpha=0.3)
 
-    # Velocity
-    plt.subplot(g[3, :])
-    plt.ylim([0, x0[1]])
-    for i in range(mc):
-        plt.plot(time_ind, x[1, :, i], alpha=0.35, color='b')
-    plt.ylabel('velocity [ft/s]')
-    plt.xlabel('time [s]')
+    # Altitude
+    # x0 = sys.pars['x0_mean']
+    # plt.subplot(g[2, :])
+    # plt.ylim([0, x0[0]])
+    # for i in range(mc):
+    #     plt.plot(time_ind, x[0, :, i], alpha=0.35, color='b')
+    # plt.ylabel('altitude [ft]')
+    # plt.xlabel('time [s]')
+    #
+    # # Velocity
+    # plt.subplot(g[3, :])
+    # plt.ylim([0, x0[1]])
+    # for i in range(mc):
+    #     plt.plot(time_ind, x[1, :, i], alpha=0.35, color='b')
+    # plt.ylabel('velocity [ft/s]')
+    # plt.xlabel('time [s]')
 
     # Compute Performance Scores
     error2 = mean.copy()
-    lcr = np.zeros((steps, mc, num_alg))
+    pos_lcr = np.zeros((steps, mc, num_alg))
+    vel_lcr = pos_lcr.copy()
     for a in range(num_alg):
         for k in range(steps):
-            mse = mse_matrix(x[:1, k, :], mean[:1, k, :, a])
+            pos_mse = mse_matrix(x[:1, k, :], mean[:1, k, :, a])
+            vel_mse = mse_matrix(x[1:2, k, :], mean[1:2, k, :, a])
             for imc in range(mc):
                 error2[:, k, imc, a] = squared_error(x[:, k, imc], mean[:, k, imc, a])
-                lcr[k, imc, a] = log_cred_ratio(x[:1, k, imc], mean[:1, k, imc, a], cov[:1, :1, k, imc, a], mse)
+                pos_lcr[k, imc, a] = log_cred_ratio(x[:1, k, imc], mean[:1, k, imc, a],
+                                                    cov[:1, :1, k, imc, a], pos_mse)
+                vel_lcr[k, imc, a] = log_cred_ratio(x[1:2, k, imc], mean[1:2, k, imc, a],
+                                                    cov[1:2, 1:2, k, imc, a], vel_mse)
 
-    # Averaged RMSE and Inclination Indicator in time
-    rmse = np.sqrt(error2[:1, ...].sum(axis=0))
-    pos_rmse_vs_time = rmse.mean(axis=1)
-    inc_ind_vs_time = lcr.mean(axis=1)
+    # Averaged position/velocity RMSE and inclination in time
+    pos_rmse = np.sqrt(error2[:1, ...].sum(axis=0))
+    pos_rmse_vs_time = pos_rmse.mean(axis=1)
+    pos_inc_vs_time = pos_lcr.mean(axis=1)
+    vel_rmse = np.sqrt(error2[1:2, ...].sum(axis=0))
+    vel_rmse_vs_time = vel_rmse.mean(axis=1)
+    vel_inc_vs_time = vel_lcr.mean(axis=1)
 
     # PLOTS: Performance Scores
     plt.figure()
-    g = GridSpec(2, 3)
+    g = GridSpec(4, 3)
 
     plt.subplot(g[0, :2])
-    plt.title('RMSE')
+    plt.ylabel('RMSE')
     plt.plot(time_ind, pos_rmse_vs_time[:, 0], label='GPQKF', color='g')
     plt.plot(time_ind, pos_rmse_vs_time[:, 1], label='UKF', color='r')
     plt.legend()
 
     plt.subplot(g[1, :2])
-    plt.title('Inclination Indicator $I^2$')
-    plt.plot(time_ind, inc_ind_vs_time[:, 0], label='GPQKF', color='g')
-    plt.plot(time_ind, inc_ind_vs_time[:, 1], label='UKF', color='r')
+    plt.ylabel('Inclination')
+    plt.plot(time_ind, pos_inc_vs_time[:, 0], label='GPQKF', color='g')
+    plt.plot(time_ind, pos_inc_vs_time[:, 1], label='UKF', color='r')
+    plt.legend()
+
+    plt.subplot(g[2, :2])
+    plt.ylabel('RMSE')
+    plt.plot(time_ind, vel_rmse_vs_time[:, 0], label='GPQKF', color='g')
+    plt.plot(time_ind, vel_rmse_vs_time[:, 1], label='UKF', color='r')
+    plt.legend()
+
+    plt.subplot(g[3, :2])
+    plt.ylabel('Inclination')
+    plt.plot(time_ind, vel_inc_vs_time[:, 0], label='GPQKF', color='g')
+    plt.plot(time_ind, vel_inc_vs_time[:, 1], label='UKF', color='r')
     plt.legend()
 
     # Box plots of time-averaged scores
     plt.subplot(g[0, 2:])
-    plt.boxplot(rmse.mean(axis=0), labels=['GPQKF', 'UKF'])
+    plt.boxplot(pos_rmse.mean(axis=0), labels=['GPQKF', 'UKF'])
 
     plt.subplot(g[1, 2:])
-    plt.boxplot(lcr.mean(axis=0), labels=['GPQKF', 'UKF'])
+    plt.boxplot(pos_lcr.mean(axis=0), labels=['GPQKF', 'UKF'])
+
+    plt.subplot(g[2, 2:])
+    plt.boxplot(vel_rmse.mean(axis=0), labels=['GPQKF', 'UKF'])
+
+    plt.subplot(g[3, 2:])
+    plt.boxplot(vel_rmse.mean(axis=0), labels=['GPQKF', 'UKF'])
 
     plt.show()
 
     print('Average RMSE: {}'.format(pos_rmse_vs_time.mean(axis=0)))
-    print('Average I2: {}'.format(inc_ind_vs_time.mean(axis=0)))
+    print('Average I2: {}'.format(pos_inc_vs_time.mean(axis=0)))
 
 if __name__ == '__main__':
     # reentry_gpq_demo()
