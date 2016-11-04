@@ -388,7 +388,7 @@ class ReentryRadarSimple(StateSpaceModel):
         """
         self.dt = dt
         kwargs = {
-            'x0_mean': np.array([91.44, 6.096, 1.0]),  # ft, ft/s
+            'x0_mean': np.array([90, 6, 1.0]),  # ft, ft/s
             'x0_cov': np.diag([0.3048**2, 1.2192**2, 1e-4]),  # ft^2, ft^2/s^2
             'q_mean': np.zeros(self.qD),
             'q_cov': np.array([[0, 0, 0],
