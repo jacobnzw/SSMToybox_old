@@ -257,7 +257,7 @@ def reentry_simple_gpq_demo(dur=30, tau=0.1, mc=100):
     plt.boxplot(vel_rmse.mean(axis=0), labels=['GPQKF', 'UKF'])
 
     plt.subplot(g[3, 2:])
-    plt.boxplot(vel_rmse.mean(axis=0), labels=['GPQKF', 'UKF'])
+    plt.boxplot(vel_lcr.mean(axis=0), labels=['GPQKF', 'UKF'])
 
     plt.show()
 
