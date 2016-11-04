@@ -101,14 +101,30 @@ def reentry_gpq_demo():
     print('Average I2: {}'.format(inc_ind_vs_time.mean(axis=0)))
 
 
-def reentry_simple_gpq_demo():
-    mc = 100
-    disc_tau = 0.1  # discretization period
-    dur = 30  # duration
+def reentry_simple_gpq_demo(dur=30, tau=0.1, mc=100):
+    """
+
+    Parameters
+    ----------
+    tau: float
+        discretization period for the dynamics ODE integration method
+    dur: int
+        Duration of the dynamics simulation
+    mc: int
+        Number of Monte Carlo simulations.
+
+    Notes
+    -----
+    The parameter mc determines the number of trajectories simulated.
+
+    Returns
+    -------
+
+    """
 
     # Generate reference trajectory by ODE integration
     sys = ReentryRadarSimple()
-    x = sys.simulate_trajectory(method='rk4', dt=disc_tau, duration=dur, mc_sims=mc)
+    x = sys.simulate_trajectory(method='rk4', dt=tau, duration=dur, mc_sims=mc)
 
     # pick only non-divergent trajectories
     x = x[..., np.all(x >= 0, axis=(0, 1))]
@@ -119,11 +135,11 @@ def reentry_simple_gpq_demo():
         y[..., i] = sys.simulate_measurements(x[..., i], mc_per_step=1).squeeze()
 
     # GPQKF kernel parameters
-    hdyn = {'alpha': 1.0, 'el': 3 * [15]}
-    hobs = {'alpha': 1.0, 'el': [15, 1e2, 1e2]}
+    hdyn = {'alpha': 1.0, 'el': 3 * [20]}
+    hobs = {'alpha': 1.0, 'el': [20, 1e2, 1e2]}
 
     # Initialize model
-    ssm = ReentryRadarSimpleModel(dt=disc_tau)
+    ssm = ReentryRadarSimpleModel(dt=tau)
 
     # Initialize filters
     alg = (
