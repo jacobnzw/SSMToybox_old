@@ -135,16 +135,19 @@ def reentry_simple_gpq_demo(dur=30, tau=0.1, mc=100):
         y[..., i] = sys.simulate_measurements(x[..., i], mc_per_step=1).squeeze()
 
     # GPQKF kernel parameters
-    hdyn = {'alpha': 1.0, 'el': 3 * [20]}
-    hobs = {'alpha': 1.0, 'el': [20, 1e2, 1e2]}
+    # hdyn = {'alpha': 1.0, 'el': 3 * [20]}
+    # hobs = {'alpha': 1.0, 'el': [20, 1e2, 1e2]}
+    hdyn = {'alpha': 1.0, 'el': [7, 7, 7]}
+    hobs = {'alpha': 1.0, 'el': [7, 20, 20]}
 
     # Initialize model
     ssm = ReentryRadarSimpleModel(dt=tau)
 
     # Initialize filters
     alg = (
-        GPQKalman(ssm, 'rbf', 'sr', hdyn, hobs),
-        CubatureKalman(ssm),
+        GPQKalman(ssm, 'rbf', 'ut', hdyn, hobs),
+        # CubatureKalman(ssm),
+        UnscentedKalman(ssm),
     )
 
     num_alg = len(alg)
@@ -263,12 +266,8 @@ def reentry_simple_gpq_demo(dur=30, tau=0.1, mc=100):
 
     # TODO: pandas tables for printing into latex
     print('{:=^30}'.format(' Position '))
-    print('Average RMSE: {}'.format(pos_rmse_vs_time.mean(axis=0)))
+    print('Average RMSE: {}'.format(np.sqrt(error2.sum(axis=0)).mean(axis=(0, 1))))
     print('Average I2: {}'.format(pos_inc_vs_time.mean(axis=0)))
-    print('{:=^30}'.format(' Velocity '))
-    print('Average RMSE: {}'.format(vel_rmse_vs_time.mean(axis=0)))
-    print('Average I2: {}'.format(vel_inc_vs_time.mean(axis=0)))
 
 if __name__ == '__main__':
-    # reentry_gpq_demo()
     reentry_simple_gpq_demo()
