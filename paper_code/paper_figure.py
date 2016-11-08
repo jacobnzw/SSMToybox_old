@@ -37,14 +37,14 @@ pgf_with_latex = {                      # setup matplotlib to use latex for outp
     "font.serif": [],                   # blank entries should cause plots to inherit fonts from the document
     "font.sans-serif": [],
     "font.monospace": [],
-    "font.size": 12,
-    "axes.labelsize": 12,               # LaTeX default is 10pt font.
+    "font.size": 10,
+    "axes.labelsize": 10,               # LaTeX default is 10pt font.
     "legend.fontsize": 8,               # Make the legend/label fonts a little smaller
     "xtick.labelsize": 8,
     "ytick.labelsize": 8,
     # "axes.prop_cycle": ['#5DA5DA', '#FAA43A', '#60BD68',
-    #                      '#F17CB0', '#B2912F', '#B276B2',
-    #                      '#DECF3F', '#F15854', '#4D4D4D'],
+    #                     '#F17CB0', '#B2912F', '#B276B2',
+    #                     '#DECF3F', '#F15854', '#4D4D4D'],
     "figure.figsize": figsize(1.0),      # default fig size of 0.9 textwidth
     "pgf.preamble": [                    # plots will be generated using this preamble
         r"\usepackage[utf8]{inputenc}",  # use utf8 fonts
@@ -53,6 +53,7 @@ pgf_with_latex = {                      # setup matplotlib to use latex for outp
     }
 mpl.rcParams.update(pgf_with_latex)
 import matplotlib.pyplot as plt
+plt.style.use('seaborn-deep')
 
 
 def newfig(width):
@@ -150,15 +151,40 @@ def reentry_simple_plots(time, x, mean, cov):
     pos_inc_vs_time = pos_lcr.mean(axis=1)
 
     fig = plt.figure(figsize=figsize())
-    ax = fig.add_subplot(111, xlabel='time [s]', ylabel='RMSE')
-    ax.plot(time, pos_rmse_vs_time[:, 0], lw=2, label='GPQKF')
-    ax.plot(time, pos_rmse_vs_time[:, 1], lw=2, label='UKF')
-    ax.legend()
+
+    # RMSE
+    ax1 = fig.add_subplot(211, ylabel='RMSE')
+    ax1.plot(time, pos_rmse_vs_time[:, 0], lw=2, label='GPQKF')
+    ax1.plot(time, pos_rmse_vs_time[:, 1], lw=2, label='UKF')
+    ax1.legend()
+    ax1.tick_params(axis='both', which='both', top='off', right='off', labelright='off', labelbottom='off')
+
+    # inclination indicator
+    ax2 = fig.add_subplot(212, xlabel='time [s]', ylabel=r'$ \nu $', sharex=ax1)
+    ax2.plot(time, pos_inc_vs_time[:, 0], lw=2, label='GPQKF')
+    ax2.plot(time, pos_inc_vs_time[:, 1], lw=2, label='UKF')
+    ax2.tick_params(axis='both', which='both', top='off', right='off', labelright='off')
     fig.tight_layout(pad=0.5)
 
     print("Saving figure ...")
-    savefig("reentry_rmse")
+    savefig("reentry_position_rmse_inc")
 
 if __name__ == '__main__':
-    time, x, mean, cov = reentry_simple_data(mc=100)
+    import pickle
+    # get simulation results
+    # time, x, mean, cov = reentry_simple_data(mc=100)
+    #
+    # # dump simulated data for fast re-plotting
+    # print('Pickling data ...')
+    # with open('reentry_data_mc100_tau0.1.dat', 'wb') as f:
+    #     pickle.dump((time, x, mean, cov), f)
+    #     f.close()
+
+    # load pickled data
+    print('Unpickling data ...')
+    with open('reentry_data_mc100_tau0.1.dat', 'rb') as f:
+        time, x, mean, cov = pickle.load(f)
+        f.close()
+
+    # calculate scores and generate publication ready figures
     reentry_simple_plots(time, x, mean, cov)
