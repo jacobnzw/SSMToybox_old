@@ -26,9 +26,8 @@ def gpq_polar2cartesian_demo():
     dim = 2
 
     # Initialize transforms
-    # TODO: getting negative EMV and IVAR, is kbar == qbar in EMV? doubtfull.
     # high el[0], because the function is linear given x[1]
-    tf_gpq = GPQ(dim, 'rbf', 'sr', {'alpha': 0.5, 'el': [600, 6]})
+    tf_gpq = GPQ(dim, 'rbf', 'sr', {'alpha': 1.0, 'el': [600, 6]})
     tf_sr = SphericalRadial(dim)
     tf_mc = MonteCarlo(dim, n=1e4)  # 10k samples
 
@@ -84,6 +83,14 @@ def gpq_polar2cartesian_demo():
     print("SKL Score:")
     print("SR: {:.2e}".format(skl(mean_mc, cov_mc, mean_sr, cov_sr)))
     print("GPQ: {:.2e}".format(skl(mean_mc, cov_mc, mean_gpq, cov_gpq)))
+
+
+def polar2cartesian_sandblom_demo():
+    # TODO: try replicating the experimental validation from Marginalized Transform paper
+    # test for several different input positions and noise levels
+    # average SKL score results for each configuration
+    # show comparisons with SR
+    pass
 
 
 if __name__ == '__main__':
