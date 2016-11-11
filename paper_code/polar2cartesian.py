@@ -1,22 +1,27 @@
 from transforms.bayesquad import GPQ
-from transforms.quad import MonteCarlo, SphericalRadial
+from transforms.quad import MonteCarlo, SphericalRadial, GaussHermite
 from utils import *
 import numpy.linalg as la
 import matplotlib.pyplot as plt
+from collections import OrderedDict
 
 
 """
 Gaussian Process Quadrature moment transformation tested on a mapping from polar to cartesian coordinates.
 """
 
-# TODO: create decorator with 3 arguments to make functions compatible w GPQ transform
+
+def no_par(f):
+    def wrapper(x):
+        return f(x, None)
+    return wrapper
 
 
-def polar2cartesian(x):
+def polar2cartesian(x, pars):
     return x[0] * np.array([np.cos(x[1]), np.sin(x[1])])
 
 
-def cartesian2polar(x):
+def cartesian2polar(x, pars):
     r = np.sqrt(x[0]**2 + x[1]**2)
     theta = np.arctan2(x[1], x[0])
     return np.array([r, theta])
@@ -47,18 +52,18 @@ def gpq_polar2cartesian_demo():
 
     # Mapped samples
     x = np.random.multivariate_normal(mean_in, cov_in, size=int(1e3)).T
-    fx = np.apply_along_axis(polar2cartesian, 0, x)
+    fx = np.apply_along_axis(polar2cartesian, 0, x, None)
 
     # MC transformed moments
-    mean_mc, cov_mc, cc_mc = tf_mc.apply(polar2cartesian, mean_in, cov_in)
+    mean_mc, cov_mc, cc_mc = tf_mc.apply(polar2cartesian, mean_in, cov_in, None)
     ellipse_mc = ellipse_points(mean_mc, cov_mc)
 
     # GPQ transformed moments with ellipse points
-    mean_gpq, cov_gpq, cc = tf_gpq.apply(polar2cartesian, mean_in, cov_in)
+    mean_gpq, cov_gpq, cc = tf_gpq.apply(polar2cartesian, mean_in, cov_in, None)
     ellipse_gpq = ellipse_points(mean_gpq, cov_gpq)
 
     # SR transformed moments with ellipse points
-    mean_sr, cov_sr, cc = tf_sr.apply(polar2cartesian, mean_in, cov_in)
+    mean_sr, cov_sr, cc = tf_sr.apply(polar2cartesian, mean_in, cov_in, None)
     ellipse_sr = ellipse_points(mean_sr, cov_sr)
 
     # Plots
@@ -99,7 +104,7 @@ def polar2cartesian_spiral_demo():
     # show comparisons with SR
 
     # Archimedean spiral polar form
-    r_spiral = lambda x: 2*x
+    r_spiral = lambda x: 10*x
 
     theta_min, theta_max = 0.25*np.pi, 2.25*np.pi
     num_locs = 10
@@ -111,46 +116,87 @@ def polar2cartesian_spiral_demo():
     theta_pt = np.linspace(theta_min, theta_max, 10)
     r_pt = r_spiral(theta_pt)
 
-    # samples from 12 normal RVs centered on the points of the spiral
+    # samples from normal RVs centered on the points of the spiral
+    # TODO: use multiple azimuth covariances
     mean = np.array([r_pt, theta_pt])
-    cov = np.diag([0.2 ** 2, (np.pi / 10) ** 2])
-
-    num_dim, num_samples = 2, 50
-    x12 = np.zeros((num_dim, num_samples, num_locs))
-    for loc in range(num_locs):
-        x12[..., loc] = np.random.multivariate_normal(mean[..., loc], cov, size=num_samples).T
+    cov = np.diag([0.05 ** 2, (np.pi / 10) ** 2])
 
     # PLOTS: Polar coordinates
-    fig = plt.figure()
+    #
+    # num_dim, num_samples = 2, 50
+    # x12 = np.zeros((num_dim, num_samples, num_locs))
+    # for loc in range(num_locs):
+    #     x12[..., loc] = np.random.multivariate_normal(mean[..., loc], cov, size=num_samples).T
+    #
+    # fig = plt.figure()
+    #
+    # ax = fig.add_subplot(121, projection='polar')
+    # ax.plot(0, 0, 'r+', ms=12)
+    # ax.plot(theta, r)
+    # ax.plot(theta_pt, r_pt, 'o')
+    # for loc in range(num_locs):
+    #     # ax.plot(x12[0, :, loc], x12[1, :, loc], '.')
+    #     pol_ellipse = ellipse_points(mean[..., loc], cov)
+    #     # pol_ellipse = np.apply_along_axis(cartesian2polar, 0, ellipse_points(mean[..., loc], cov))
+    #     ax.plot(pol_ellipse[1, :], pol_ellipse[0, :])
+    #
+    # # PLOTS: Cartesian coordinates
+    # pol_spiral = np.array([r, theta])
+    # pol12_spiral = np.array([r_pt, theta_pt])
+    # car_spiral = np.apply_along_axis(polar2cartesian, 0, pol_spiral)
+    # car12_spiral = np.apply_along_axis(polar2cartesian, 0, pol12_spiral)
+    # car_x12 = np.apply_along_axis(polar2cartesian, 0, x12)
+    #
+    # ax = fig.add_subplot(122)
+    # ax.plot(0, 0, 'r+', ms=12)
+    # ax.plot(car_spiral[0, :], car_spiral[1, :])
+    # ax.plot(car12_spiral[0, :], car12_spiral[1, :], 'o')
+    # for loc in range(num_locs):
+    #     # ax.plot(car_x12[0, :, loc], car_x12[1, :, loc], '.')
+    #     car_ellipse = np.apply_along_axis(polar2cartesian, 0, ellipse_points(mean[..., loc], cov))
+    #     ax.plot(car_ellipse[0, :], car_ellipse[1, :])
+    #
+    # plt.show()
 
-    ax = fig.add_subplot(121, projection='polar')
-    ax.plot(0, 0, 'r+', ms=12)
-    ax.plot(theta, r)
-    ax.plot(theta_pt, r_pt, 'o')
-    for loc in range(num_locs):
-        # ax.plot(x12[0, :, loc], x12[1, :, loc], '.')
-        pol_ellipse = ellipse_points(mean[..., loc], cov)
-        # pol_ellipse = np.apply_along_axis(cartesian2polar, 0, ellipse_points(mean[..., loc], cov))
-        ax.plot(pol_ellipse[1, :], pol_ellipse[0, :])
 
-    # PLOTS: Cartesian coordinates
-    pol_spiral = np.array([r, theta])
-    pol12_spiral = np.array([r_pt, theta_pt])
-    car_spiral = np.apply_along_axis(polar2cartesian, 0, pol_spiral)
-    car12_spiral = np.apply_along_axis(polar2cartesian, 0, pol12_spiral)
-    car_x12 = np.apply_along_axis(polar2cartesian, 0, x12)
+    # COMPARE moment transforms
+    num_dim = 2
+    moment_tforms = OrderedDict([
+        ('gpq-sr', GPQ(num_dim, 'rbf', 'sr', {'alpha': 1.0, 'el': [600, 6]})),
+        ('sr', SphericalRadial(num_dim)),
+    ])
+    baseline_mtf = MonteCarlo(num_dim, n=10000)
+    num_tforms = len(moment_tforms)
 
-    ax = fig.add_subplot(122)
-    ax.plot(0, 0, 'r+', ms=12)
-    ax.plot(car_spiral[0, :], car_spiral[1, :])
-    ax.plot(car12_spiral[0, :], car12_spiral[1, :], 'o')
-    for loc in range(num_locs):
-        # ax.plot(car_x12[0, :, loc], car_x12[1, :, loc], '.')
-        car_ellipse = np.apply_along_axis(polar2cartesian, 0, ellipse_points(mean[..., loc], cov))
-        ax.plot(car_ellipse[0, :], car_ellipse[1, :])
+    # initialize storage of SKL scores
+    skl_dict = dict([(mt_str, np.zeros(num_locs)) for mt_str in moment_tforms.keys()])
 
+    # for each input moment
+    for i in range(num_locs):
+        mean_in, cov_in = mean[..., i], cov
+
+        # calculate baseline using Monte Carlo
+        mean_out_mc, cov_out_mc, cc = baseline_mtf.apply(polar2cartesian, mean_in, cov_in, None)
+
+        # for each MT
+        for mt_str in moment_tforms.keys():
+
+            # calculate the transformed moments
+            mean_out, cov_out, cc = moment_tforms[mt_str].apply(polar2cartesian, mean_in, cov_in, None)
+
+            # compute SKL
+            skl_dict[mt_str][i] = skl(mean_out_mc, cov_out_mc, mean_out, cov_out)
+
+    # PLOT the SKL score for each MT and position on the spiral
+    plt.figure()
+
+    index = np.arange(num_locs)+1
+    for mt_str in moment_tforms.keys():
+        plt.plot(index, skl_dict[mt_str], label=mt_str)
+
+    plt.legend()
     plt.show()
-
 
 if __name__ == '__main__':
     polar2cartesian_spiral_demo()
+    # gpq_polar2cartesian_demo()
