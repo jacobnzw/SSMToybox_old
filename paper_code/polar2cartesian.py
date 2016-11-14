@@ -119,14 +119,14 @@ def polar2cartesian_spiral_demo():
 
     # samples from normal RVs centered on the points of the spiral
     mean = np.array([r_pt, theta_pt])
-    r_var = 0.05 ** 2
+    r_std = 0.5
 
     # multiple azimuth covariances in increasing order
     num_cov = 10
-    theta_var = np.linspace((np.pi / 20) ** 2, (np.pi/5) ** 2, num_cov)
+    theta_std = np.deg2rad(np.linspace(6, 36, num_cov))
     cov = np.zeros((num_dim, num_dim, num_cov))
     for i in range(num_cov):
-        cov[..., i] = np.diag([r_var, theta_var[i]])
+        cov[..., i] = np.diag([r_std**2, theta_std[i]**2])
 
     # PLOTS: Polar coordinates
     #
@@ -202,14 +202,14 @@ def polar2cartesian_spiral_demo():
     ax1 = fig.add_subplot(121)
     index = np.arange(num_mean)+1
     for mt_str in moment_tforms.keys():
-        ax1.plot(index, skl_dict[mt_str].mean(axis=1), label=mt_str.upper())
+        ax1.plot(index, skl_dict[mt_str].mean(axis=1), marker='o', label=mt_str.upper())
     ax1.set_xlabel('Position index')
     ax1.set_ylabel('SKL')
 
     # Average over azimuth variances
     ax2 = fig.add_subplot(122, sharey=ax1)
     for mt_str in moment_tforms.keys():
-        ax2.plot(np.rad2deg(np.sqrt(theta_var)), skl_dict[mt_str].mean(axis=0), label=mt_str.upper())
+        ax2.plot(np.rad2deg(np.sqrt(theta_std)), skl_dict[mt_str].mean(axis=0), marker='o', label=mt_str.upper())
     ax2.set_xlabel('Azimuth STD [$ \circ $]')
     ax2.legend()
     fig.tight_layout(pad=0.5)
