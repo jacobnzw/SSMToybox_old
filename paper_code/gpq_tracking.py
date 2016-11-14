@@ -1,6 +1,6 @@
 from utils import *
 import numpy.linalg as la
-import matplotlib.pyplot as plt
+from paper_code.journal_figure import *
 from matplotlib.gridspec import GridSpec
 from inference.gpquad import GPQKalman
 from inference.unscented import UnscentedKalman
@@ -269,5 +269,109 @@ def reentry_simple_gpq_demo(dur=30, tau=0.1, mc=100):
     print('Average RMSE: {}'.format(np.sqrt(error2.sum(axis=0)).mean(axis=(0, 1))))
     print('Average I2: {}'.format(pos_inc_vs_time.mean(axis=0)))
 
+
+def reentry_simple_data(dur=30, tau=0.1, mc=100):
+    # Generate reference trajectory by ODE integration
+    sys = ReentryRadarSimple()
+    x = sys.simulate_trajectory(method='rk4', dt=tau, duration=dur, mc_sims=mc)
+
+    # pick only non-divergent trajectories
+    x = x[..., np.all(x >= 0, axis=(0, 1))]
+    mc = x.shape[2]
+
+    y = np.zeros((sys.zD,) + x.shape[1:])
+    for i in range(mc):
+        y[..., i] = sys.simulate_measurements(x[..., i], mc_per_step=1).squeeze()
+
+    # GPQKF kernel parameters
+    # hdyn = {'alpha': 1.0, 'el': 3 * [20]}
+    # hobs = {'alpha': 1.0, 'el': [20, 1e2, 1e2]}
+    hdyn = {'alpha': 1.0, 'el': [7, 7, 7]}
+    hobs = {'alpha': 1.0, 'el': [7, 20, 20]}
+
+    # Initialize model
+    ssm = ReentryRadarSimpleModel(dt=tau)
+
+    # Initialize filters
+    alg = (
+        GPQKalman(ssm, 'rbf', 'ut', hdyn, hobs),
+        # CubatureKalman(ssm),
+        UnscentedKalman(ssm),
+    )
+
+    num_alg = len(alg)
+    d, steps, mc = x.shape
+    mean, cov = np.zeros((d, steps, mc, num_alg)), np.zeros((d, d, steps, mc, num_alg))
+    for imc in range(mc):
+        for ia, a in enumerate(alg):
+            # Do filtering and reset the filters for each new track
+            mean[..., imc, ia], cov[..., imc, ia] = a.forward_pass(y[..., imc])
+            a.reset()
+
+    # time index for plotting
+    time_ind = np.linspace(1, dur, x.shape[1])
+
+    return time_ind, x, mean, cov
+
+
+def reentry_simple_plots(time, x, mean, cov):
+    d, steps, mc, num_alg = mean.shape
+    error2 = mean.copy()
+    pos_lcr = np.zeros((steps, mc, num_alg))
+    vel_lcr = pos_lcr.copy()
+
+    print("Calculating scores ...")
+    for a in range(num_alg):
+        for k in range(steps):
+            pos_mse = mse_matrix(x[:1, k, :], mean[:1, k, :, a])
+            vel_mse = mse_matrix(x[1:2, k, :], mean[1:2, k, :, a])
+            for imc in range(mc):
+                error2[:, k, imc, a] = squared_error(x[:, k, imc], mean[:, k, imc, a])
+                pos_lcr[k, imc, a] = log_cred_ratio(x[:1, k, imc], mean[:1, k, imc, a],
+                                                    cov[:1, :1, k, imc, a], pos_mse)
+                vel_lcr[k, imc, a] = log_cred_ratio(x[1:2, k, imc], mean[1:2, k, imc, a],
+                                                    cov[1:2, 1:2, k, imc, a], vel_mse)
+
+    # Averaged position/velocity RMSE and inclination in time
+    pos_rmse = np.sqrt(error2[:1, ...].sum(axis=0))
+    pos_rmse_vs_time = pos_rmse.mean(axis=1)
+    pos_inc_vs_time = pos_lcr.mean(axis=1)
+
+    fig = plt.figure(figsize=figsize())
+
+    # RMSE
+    ax1 = fig.add_subplot(211, ylabel='RMSE')
+    ax1.plot(time, pos_rmse_vs_time[:, 0], lw=2, label='GPQKF')
+    ax1.plot(time, pos_rmse_vs_time[:, 1], lw=2, label='UKF')
+    ax1.legend()
+    ax1.tick_params(axis='both', which='both', top='off', right='off', labelright='off', labelbottom='off')
+
+    # inclination indicator
+    ax2 = fig.add_subplot(212, xlabel='time [s]', ylabel=r'$ \nu $', sharex=ax1)
+    ax2.plot(time, pos_inc_vs_time[:, 0], lw=2, label='GPQKF')
+    ax2.plot(time, pos_inc_vs_time[:, 1], lw=2, label='UKF')
+    ax2.tick_params(axis='both', which='both', top='off', right='off', labelright='off')
+    fig.tight_layout(pad=0.5)
+
+    print("Saving figure ...")
+    savefig("reentry_position_rmse_inc")
+
 if __name__ == '__main__':
-    reentry_simple_gpq_demo()
+    import pickle
+    # get simulation results
+    # time, x, mean, cov = reentry_simple_data(mc=100)
+    #
+    # # dump simulated data for fast re-plotting
+    # print('Pickling data ...')
+    # with open('reentry_data_mc100_tau0.1.dat', 'wb') as f:
+    #     pickle.dump((time, x, mean, cov), f)
+    #     f.close()
+
+    # load pickled data
+    print('Unpickling data ...')
+    with open('reentry_data_mc100_tau0.1.dat', 'rb') as f:
+        time, x, mean, cov = pickle.load(f)
+        f.close()
+
+    # calculate scores and generate publication ready figures
+    reentry_simple_plots(time, x, mean, cov)

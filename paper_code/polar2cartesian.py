@@ -2,7 +2,9 @@ from transforms.bayesquad import GPQ
 from transforms.quad import MonteCarlo, SphericalRadial, GaussHermite
 from utils import *
 import numpy.linalg as la
-import matplotlib.pyplot as plt
+# import matplotlib as mpl
+# import matplotlib.pyplot as plt
+from paper_code.journal_figure import *
 from collections import OrderedDict
 
 
@@ -101,25 +103,30 @@ def gpq_polar2cartesian_demo():
 def polar2cartesian_spiral_demo():
     # test for several different input positions and noise levels
     # average SKL score results for each configuration
-    # show comparisons with SR
 
-    # Archimedean spiral polar form
-    r_spiral = lambda x: 10*x
+    num_dim = 2
 
-    theta_min, theta_max = 0.25*np.pi, 2.25*np.pi
-    num_locs = 10
-    # spiral
+    # create spiral in polar domain
+    r_spiral = lambda x: 10 * x
+    theta_min, theta_max = 0.25 * np.pi, 2.25 * np.pi
     theta = np.linspace(theta_min, theta_max, 100)
     r = r_spiral(theta)
 
     # equidistant points on a spiral
-    theta_pt = np.linspace(theta_min, theta_max, 10)
+    num_mean = 10
+    theta_pt = np.linspace(theta_min, theta_max, num_mean)
     r_pt = r_spiral(theta_pt)
 
     # samples from normal RVs centered on the points of the spiral
-    # TODO: use multiple azimuth covariances
     mean = np.array([r_pt, theta_pt])
-    cov = np.diag([0.05 ** 2, (np.pi / 10) ** 2])
+    r_var = 0.05 ** 2
+
+    # multiple azimuth covariances in increasing order
+    num_cov = 10
+    theta_var = np.linspace((np.pi / 20) ** 2, (np.pi/5) ** 2, num_cov)
+    cov = np.zeros((num_dim, num_dim, num_cov))
+    for i in range(num_cov):
+        cov[..., i] = np.diag([r_var, theta_var[i]])
 
     # PLOTS: Polar coordinates
     #
@@ -158,44 +165,58 @@ def polar2cartesian_spiral_demo():
     #
     # plt.show()
 
-
     # COMPARE moment transforms
-    num_dim = 2
     moment_tforms = OrderedDict([
-        ('gpq-sr', GPQ(num_dim, 'rbf', 'sr', {'alpha': 1.0, 'el': [600, 6]})),
+        ('gpq-sr', GPQ(num_dim, 'rbf', 'sr', {'alpha': 1.0, 'el': [60, 6]})),
         ('sr', SphericalRadial(num_dim)),
     ])
     baseline_mtf = MonteCarlo(num_dim, n=10000)
     num_tforms = len(moment_tforms)
 
     # initialize storage of SKL scores
-    skl_dict = dict([(mt_str, np.zeros(num_locs)) for mt_str in moment_tforms.keys()])
+    skl_dict = dict([(mt_str, np.zeros((num_mean, num_cov))) for mt_str in moment_tforms.keys()])
 
-    # for each input moment
-    for i in range(num_locs):
-        mean_in, cov_in = mean[..., i], cov
+    # for each mean
+    for i in range(num_mean):
 
-        # calculate baseline using Monte Carlo
-        mean_out_mc, cov_out_mc, cc = baseline_mtf.apply(polar2cartesian, mean_in, cov_in, None)
+        # for each covariance
+        for j in range(num_cov):
+            mean_in, cov_in = mean[..., i], cov[..., j]
 
-        # for each MT
-        for mt_str in moment_tforms.keys():
+            # calculate baseline using Monte Carlo
+            mean_out_mc, cov_out_mc, cc = baseline_mtf.apply(polar2cartesian, mean_in, cov_in, None)
 
-            # calculate the transformed moments
-            mean_out, cov_out, cc = moment_tforms[mt_str].apply(polar2cartesian, mean_in, cov_in, None)
+            # for each MT
+            for mt_str in moment_tforms.keys():
 
-            # compute SKL
-            skl_dict[mt_str][i] = skl(mean_out_mc, cov_out_mc, mean_out, cov_out)
+                # calculate the transformed moments
+                mean_out, cov_out, cc = moment_tforms[mt_str].apply(polar2cartesian, mean_in, cov_in, None)
+
+                # compute SKL
+                skl_dict[mt_str][i, j] = skl(mean_out_mc, cov_out_mc, mean_out, cov_out)
 
     # PLOT the SKL score for each MT and position on the spiral
-    plt.figure()
+    fig = plt.figure(figsize=figsize(1.0))
 
-    index = np.arange(num_locs)+1
+    # Average over mean indexes
+    ax1 = fig.add_subplot(121)
+    index = np.arange(num_mean)+1
     for mt_str in moment_tforms.keys():
-        plt.plot(index, skl_dict[mt_str], label=mt_str)
+        ax1.plot(index, skl_dict[mt_str].mean(axis=1), label=mt_str.upper())
+    ax1.set_xlabel('Position index')
+    ax1.set_ylabel('SKL')
 
-    plt.legend()
+    # Average over azimuth variances
+    ax2 = fig.add_subplot(122, sharey=ax1)
+    for mt_str in moment_tforms.keys():
+        ax2.plot(np.rad2deg(np.sqrt(theta_var)), skl_dict[mt_str].mean(axis=0), label=mt_str.upper())
+    ax2.set_xlabel('Azimuth STD [$ \circ $]')
+    ax2.legend()
+    fig.tight_layout(pad=0.5)
     plt.show()
+
+    # save figure
+    savefig('polar2cartesian_skl')
 
 if __name__ == '__main__':
     polar2cartesian_spiral_demo()
