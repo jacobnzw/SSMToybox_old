@@ -209,7 +209,7 @@ def polar2cartesian_spiral_demo():
     # Average over azimuth variances
     ax2 = fig.add_subplot(122, sharey=ax1)
     for mt_str in moment_tforms.keys():
-        ax2.plot(np.rad2deg(np.sqrt(theta_std)), skl_dict[mt_str].mean(axis=0), marker='o', label=mt_str.upper())
+        ax2.plot(np.rad2deg(theta_std), skl_dict[mt_str].mean(axis=0), marker='o', label=mt_str.upper())
     ax2.set_xlabel('Azimuth STD [$ \circ $]')
     ax2.legend()
     fig.tight_layout(pad=0.5)
