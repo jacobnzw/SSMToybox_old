@@ -204,29 +204,54 @@ def polar2cartesian_spiral_demo():
 
     pol_spiral = np.array([r, theta])
     pol_spiral_pt = np.array([r_pt, theta_pt])
+
+    fig = plt.figure(figsize=figsize(h_scale=1.2))
+    # PLOTS: Input moments in polar coordinates
+    # ax = fig.add_subplot(121, projection='polar')
+    # # ax.set_aspect('equal')
+    #
+    # # origin
+    # ax.plot(0, 0, 'r+', ms=4)
+    #
+    # # spiral
+    # ax.plot(pol_spiral[1, :], pol_spiral[0, :], color='r', lw=0.5, ls='--', alpha=0.5)
+    #
+    # # points on a spiral, i.e. input means
+    # ax.plot(pol_spiral_pt[1, :], pol_spiral_pt[0, :], 'o', color='k', ms=1)
+    #
+    # # for every input mean and covariance
+    # for i in range(num_mean):
+    #     for j in range(num_cov):
+    #
+    #         # plot covariance ellipse
+    #         car_ellipse = ellipse_points(mean[..., i], cov[..., 5])
+    #         ax.plot(car_ellipse[1, :], car_ellipse[0, :], color='k', lw=0.5)
+
+    # transform spiral to Cartesian coordinates
     car_spiral = np.apply_along_axis(polar2cartesian, 0, pol_spiral, None)
     car_spiral_pt = np.apply_along_axis(polar2cartesian, 0, pol_spiral_pt, None)
 
-    # PLOTS: Input moments in Cartesian coordinates
-    fig = plt.figure(figsize=figsize(1.0))
+    # PLOTS: Transformed moments in Cartesian coordinates
     ax = fig.add_subplot(111)
+    ax.set_aspect('equal')
 
     # origin
-    ax.plot(0, 0, 'r+', ms=8)
+    ax.plot(0, 0, 'r+', ms=4)
 
     # spiral
-    ax.plot(car_spiral[0, :], car_spiral[1, :], color='r', lw=1, ls='--')
+    ax.plot(car_spiral[0, :], car_spiral[1, :], color='r', lw=0.5, ls='--', alpha=0.5)
 
     # points on a spiral, i.e. input means
-    ax.plot(car_spiral_pt[0, :], car_spiral_pt[1, :], 'o', ms=4)
+    ax.plot(car_spiral_pt[0, :], car_spiral_pt[1, :], 'o', color='k', ms=1)
 
     # for every input mean and covariance
     for i in range(num_mean):
         for j in range(num_cov):
 
             # plot covariance ellipse
-            car_ellipse = np.apply_along_axis(polar2cartesian, 0, ellipse_points(mean[..., i], cov[..., 0]), None)
-            ax.plot(car_ellipse[0, :], car_ellipse[1, :], color='k', lw=1)
+            car_ellipse = np.apply_along_axis(polar2cartesian, 0, ellipse_points(mean[..., i], cov[..., 5]), None)
+            # car_ellipse = ellipse_points(mean[..., i], cov[..., -1])
+            ax.plot(car_ellipse[0, :], car_ellipse[1, :], color='k', lw=0.5)
 
     fig.tight_layout(pad=0.5)
 
