@@ -3,14 +3,17 @@ import matplotlib as mpl
 mpl.use('pgf')
 
 
-def figsize(scale=1.0):
+def figsize(w_scale=1.0, h_scale=0.85):
     """
     Calculates figure width and height given the scale.
 
     Parameters
     ----------
-    scale: float
-        Figure scale.
+    w_scale: float
+        Figure width scale.
+
+    h_scale: float
+        Figure height scale.
 
     Returns
     -------
@@ -21,8 +24,8 @@ def figsize(scale=1.0):
     INCH_PER_PT = 1.0 / 72.27  # Convert pt to inch
     PHI = (np.sqrt(5.0) - 1.0) / 2.0  # Aesthetic ratio (you could change this)
 
-    fig_width = FIG_WIDTH_PT * INCH_PER_PT * scale    # width in inches
-    fig_height = fig_width * PHI * 0.85         # height in inches
+    fig_width = FIG_WIDTH_PT * INCH_PER_PT * w_scale    # width in inches
+    fig_height = fig_width * PHI * h_scale         # height in inches
     return [fig_width, fig_height]
 
 pgf_with_latex = {                      # setup matplotlib to use latex for output

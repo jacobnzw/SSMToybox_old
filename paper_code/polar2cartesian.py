@@ -212,21 +212,21 @@ def polar2cartesian_spiral_demo():
     ax = fig.add_subplot(111)
 
     # origin
-    ax.plot(0, 0, 'r+', ms=12)
+    ax.plot(0, 0, 'r+', ms=8)
 
     # spiral
-    ax.plot(car_spiral[0, :], car_spiral[1, :])
+    ax.plot(car_spiral[0, :], car_spiral[1, :], color='r', lw=1, ls='--')
 
     # points on a spiral, i.e. input means
-    ax.plot(car_spiral_pt[0, :], car_spiral_pt[1, :], 'o')
+    ax.plot(car_spiral_pt[0, :], car_spiral_pt[1, :], 'o', ms=4)
 
     # for every input mean and covariance
     for i in range(num_mean):
         for j in range(num_cov):
 
             # plot covariance ellipse
-            car_ellipse = np.apply_along_axis(polar2cartesian, 0, ellipse_points(mean[..., i], cov[..., j]), None)
-            ax.plot(car_ellipse[0, :], car_ellipse[1, :])
+            car_ellipse = np.apply_along_axis(polar2cartesian, 0, ellipse_points(mean[..., i], cov[..., 0]), None)
+            ax.plot(car_ellipse[0, :], car_ellipse[1, :], color='k', lw=1)
 
     fig.tight_layout(pad=0.5)
 
