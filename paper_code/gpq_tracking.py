@@ -356,6 +356,33 @@ def reentry_simple_plots(time, x, mean, cov):
     print("Saving figure ...")
     savefig("reentry_position_rmse_inc")
 
+
+def reentry_simple_trajectory_plot(time, x):
+    d, steps, mc, num_alg = mean.shape
+
+    plt.style.use('seaborn-deep')
+    # PLOTS: Trajectories
+    fig = plt.figure(figsize=figsize())
+
+    # Altitude
+    ax1 = fig.add_subplot(211)
+    for i in range(10):
+        ax1.plot(time, x[0, :, i], alpha=0.35, lw=1, color='k')
+    ax1.plot(time, x[0, ...].mean(axis=1), color='r', ls='--')
+    ax1.set_ylabel('altitude [km]')
+    ax1.tick_params(labelbottom='off')
+
+    # Velocity
+    ax2 = fig.add_subplot(212, sharex=ax1)
+    for i in range(10):
+        ax2.plot(time, x[1, :, i], alpha=0.35, lw=1, color='k')
+    ax2.plot(time, x[1, ...].mean(axis=1), color='r', ls='--')
+    ax2.set_ylabel('velocity [km/s]')
+    ax2.set_xlabel('time [s]')
+
+    fig.tight_layout(pad=0.5)
+    savefig('reentry_pos_vel')
+
 if __name__ == '__main__':
     import pickle
     # get simulation results
@@ -374,4 +401,6 @@ if __name__ == '__main__':
         f.close()
 
     # calculate scores and generate publication ready figures
-    reentry_simple_plots(time, x, mean, cov)
+    # reentry_simple_plots(time, x, mean, cov)
+    reentry_simple_trajectory_plot(time, x)
+
