@@ -100,17 +100,12 @@ def gpq_polar2cartesian_demo():
     print("GPQ: {:.2e}".format(skl(mean_mc, cov_mc, mean_gpq, cov_gpq)))
 
 
-def polar2cartesian_spiral_demo():
-    # test for several different input positions and noise levels
-    # average SKL score results for each configuration
-
+def polar2cartesian_skl_demo():
     num_dim = 2
 
     # create spiral in polar domain
     r_spiral = lambda x: 10 * x
     theta_min, theta_max = 0.25 * np.pi, 2.25 * np.pi
-    theta = np.linspace(theta_min, theta_max, 100)
-    r = r_spiral(theta)
 
     # equidistant points on a spiral
     num_mean = 10
@@ -127,43 +122,6 @@ def polar2cartesian_spiral_demo():
     cov = np.zeros((num_dim, num_dim, num_cov))
     for i in range(num_cov):
         cov[..., i] = np.diag([r_std**2, theta_std[i]**2])
-
-    # PLOTS: Polar coordinates
-    #
-    # num_dim, num_samples = 2, 50
-    # x12 = np.zeros((num_dim, num_samples, num_locs))
-    # for loc in range(num_locs):
-    #     x12[..., loc] = np.random.multivariate_normal(mean[..., loc], cov, size=num_samples).T
-    #
-    # fig = plt.figure()
-    #
-    # ax = fig.add_subplot(121, projection='polar')
-    # ax.plot(0, 0, 'r+', ms=12)
-    # ax.plot(theta, r)
-    # ax.plot(theta_pt, r_pt, 'o')
-    # for loc in range(num_locs):
-    #     # ax.plot(x12[0, :, loc], x12[1, :, loc], '.')
-    #     pol_ellipse = ellipse_points(mean[..., loc], cov)
-    #     # pol_ellipse = np.apply_along_axis(cartesian2polar, 0, ellipse_points(mean[..., loc], cov))
-    #     ax.plot(pol_ellipse[1, :], pol_ellipse[0, :])
-    #
-    # # PLOTS: Cartesian coordinates
-    # pol_spiral = np.array([r, theta])
-    # pol12_spiral = np.array([r_pt, theta_pt])
-    # car_spiral = np.apply_along_axis(polar2cartesian, 0, pol_spiral)
-    # car12_spiral = np.apply_along_axis(polar2cartesian, 0, pol12_spiral)
-    # car_x12 = np.apply_along_axis(polar2cartesian, 0, x12)
-    #
-    # ax = fig.add_subplot(122)
-    # ax.plot(0, 0, 'r+', ms=12)
-    # ax.plot(car_spiral[0, :], car_spiral[1, :])
-    # ax.plot(car12_spiral[0, :], car12_spiral[1, :], 'o')
-    # for loc in range(num_locs):
-    #     # ax.plot(car_x12[0, :, loc], car_x12[1, :, loc], '.')
-    #     car_ellipse = np.apply_along_axis(polar2cartesian, 0, ellipse_points(mean[..., loc], cov))
-    #     ax.plot(car_ellipse[0, :], car_ellipse[1, :])
-    #
-    # plt.show()
 
     # COMPARE moment transforms
     moment_tforms = OrderedDict([
@@ -196,6 +154,7 @@ def polar2cartesian_spiral_demo():
                 skl_dict[mt_str][i, j] = skl(mean_out_mc, cov_out_mc, mean_out, cov_out)
 
     # PLOT the SKL score for each MT and position on the spiral
+    plt.style.use('seaborn-deep')
     fig = plt.figure(figsize=figsize(1.0))
 
     # Average over mean indexes
@@ -213,11 +172,67 @@ def polar2cartesian_spiral_demo():
     ax2.set_xlabel('Azimuth STD [$ \circ $]')
     ax2.legend()
     fig.tight_layout(pad=0.5)
-    plt.show()
 
     # save figure
     savefig('polar2cartesian_skl')
 
+
+def polar2cartesian_spiral_demo():
+    num_dim = 2
+
+    # create spiral in polar domain
+    r_spiral = lambda x: 10 * x
+    theta_min, theta_max = 0.25 * np.pi, 2.25 * np.pi
+    theta = np.linspace(theta_min, theta_max, 100)
+    r = r_spiral(theta)
+
+    # equidistant points on a spiral
+    num_mean = 10
+    theta_pt = np.linspace(theta_min, theta_max, num_mean)
+    r_pt = r_spiral(theta_pt)
+
+    # samples from normal RVs centered on the points of the spiral
+    mean = np.array([r_pt, theta_pt])
+    r_std = 0.5
+
+    # multiple azimuth covariances in increasing order
+    num_cov = 10
+    theta_std = np.deg2rad(np.linspace(6, 36, num_cov))
+    cov = np.zeros((num_dim, num_dim, num_cov))
+    for i in range(num_cov):
+        cov[..., i] = np.diag([r_std ** 2, theta_std[i] ** 2])
+
+    pol_spiral = np.array([r, theta])
+    pol_spiral_pt = np.array([r_pt, theta_pt])
+    car_spiral = np.apply_along_axis(polar2cartesian, 0, pol_spiral, None)
+    car_spiral_pt = np.apply_along_axis(polar2cartesian, 0, pol_spiral_pt, None)
+
+    # PLOTS: Input moments in Cartesian coordinates
+    fig = plt.figure(figsize=figsize(1.0))
+    ax = fig.add_subplot(111)
+
+    # origin
+    ax.plot(0, 0, 'r+', ms=12)
+
+    # spiral
+    ax.plot(car_spiral[0, :], car_spiral[1, :])
+
+    # points on a spiral, i.e. input means
+    ax.plot(car_spiral_pt[0, :], car_spiral_pt[1, :], 'o')
+
+    # for every input mean and covariance
+    for i in range(num_mean):
+        for j in range(num_cov):
+
+            # plot covariance ellipse
+            car_ellipse = np.apply_along_axis(polar2cartesian, 0, ellipse_points(mean[..., i], cov[..., j]), None)
+            ax.plot(car_ellipse[0, :], car_ellipse[1, :])
+
+    fig.tight_layout(pad=0.5)
+
+    savefig('polar2cartesian_spiral')
+
+
 if __name__ == '__main__':
+    # polar2cartesian_skl_demo()
     polar2cartesian_spiral_demo()
-    # gpq_polar2cartesian_demo()

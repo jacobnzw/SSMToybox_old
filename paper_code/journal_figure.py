@@ -48,7 +48,6 @@ pgf_with_latex = {                      # setup matplotlib to use latex for outp
     }
 mpl.rcParams.update(pgf_with_latex)
 import matplotlib.pyplot as plt
-plt.style.use('seaborn-deep')
 
 
 def newfig(width):
