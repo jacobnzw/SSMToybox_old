@@ -206,9 +206,9 @@ def reentry_simple_gpq_demo(dur=30, tau=0.1, mc=100):
     theta_lcr = pos_lcr.copy()
     for a in range(num_alg):
         for k in range(steps):
-            pos_mse = mse_matrix(x[0, k, :], mean[0, k, :, a])
-            vel_mse = mse_matrix(x[1, k, :], mean[1, k, :, a])
-            theta_mse = mse_matrix(x[2, k, :], mean[2, k, :, a])
+            pos_mse = mse_matrix(x[0, na, k, :], mean[0, na, k, :, a])
+            vel_mse = mse_matrix(x[1, na, k, :], mean[1, na, k, :, a])
+            theta_mse = mse_matrix(x[2, na, k, :], mean[2, na, k, :, a])
             for imc in range(mc):
                 error2[:, k, imc, a] = squared_error(x[:, k, imc], mean[:, k, imc, a])
                 pos_lcr[k, imc, a] = log_cred_ratio(x[0, k, imc], mean[0, k, imc, a],
@@ -219,13 +219,13 @@ def reentry_simple_gpq_demo(dur=30, tau=0.1, mc=100):
                                                       cov[2, 2, k, imc, a], vel_mse)
 
     # Averaged position/velocity RMSE and inclination in time
-    pos_rmse = np.sqrt(error2[:1, ...].sum(axis=0))
+    pos_rmse = np.sqrt(error2[0, na, ...].sum(axis=0))
     pos_rmse_vs_time = pos_rmse.mean(axis=1)
     pos_inc_vs_time = pos_lcr.mean(axis=1)
-    vel_rmse = np.sqrt(error2[1:2, ...].sum(axis=0))
+    vel_rmse = np.sqrt(error2[1, na, ...].sum(axis=0))
     vel_rmse_vs_time = vel_rmse.mean(axis=1)
     vel_inc_vs_time = vel_lcr.mean(axis=1)
-    theta_rmse = np.sqrt(error2[2, ...].sum(axis=0))
+    theta_rmse = np.sqrt(error2[2, na, ...].sum(axis=0))
     theta_rmse_vs_time = theta_rmse.mean(axis=1)
     theta_inc_vs_time = theta_lcr.mean(axis=1)
 
