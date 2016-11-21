@@ -1,6 +1,7 @@
 from utils import *
 import numpy.linalg as la
-from paper_code.journal_figure import *
+# from paper_code.journal_figure import *
+import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
 from inference.gpquad import GPQKalman
 from inference.unscented import UnscentedKalman
@@ -202,16 +203,20 @@ def reentry_simple_gpq_demo(dur=30, tau=0.1, mc=100):
     error2 = mean.copy()
     pos_lcr = np.zeros((steps, mc, num_alg))
     vel_lcr = pos_lcr.copy()
+    theta_lcr = pos_lcr.copy()
     for a in range(num_alg):
         for k in range(steps):
-            pos_mse = mse_matrix(x[:1, k, :], mean[:1, k, :, a])
-            vel_mse = mse_matrix(x[1:2, k, :], mean[1:2, k, :, a])
+            pos_mse = mse_matrix(x[0, k, :], mean[0, k, :, a])
+            vel_mse = mse_matrix(x[1, k, :], mean[1, k, :, a])
+            theta_mse = mse_matrix(x[2, k, :], mean[2, k, :, a])
             for imc in range(mc):
                 error2[:, k, imc, a] = squared_error(x[:, k, imc], mean[:, k, imc, a])
-                pos_lcr[k, imc, a] = log_cred_ratio(x[:1, k, imc], mean[:1, k, imc, a],
-                                                    cov[:1, :1, k, imc, a], pos_mse)
-                vel_lcr[k, imc, a] = log_cred_ratio(x[1:2, k, imc], mean[1:2, k, imc, a],
-                                                    cov[1:2, 1:2, k, imc, a], vel_mse)
+                pos_lcr[k, imc, a] = log_cred_ratio(x[0, k, imc], mean[0, k, imc, a],
+                                                    cov[0, 0, k, imc, a], pos_mse)
+                vel_lcr[k, imc, a] = log_cred_ratio(x[1, k, imc], mean[1, k, imc, a],
+                                                    cov[1, 1, k, imc, a], vel_mse)
+                theta_lcr[k, imc, a] = log_cred_ratio(x[2, k, imc], mean[2, k, imc, a],
+                                                      cov[2, 2, k, imc, a], vel_mse)
 
     # Averaged position/velocity RMSE and inclination in time
     pos_rmse = np.sqrt(error2[:1, ...].sum(axis=0))
@@ -220,10 +225,13 @@ def reentry_simple_gpq_demo(dur=30, tau=0.1, mc=100):
     vel_rmse = np.sqrt(error2[1:2, ...].sum(axis=0))
     vel_rmse_vs_time = vel_rmse.mean(axis=1)
     vel_inc_vs_time = vel_lcr.mean(axis=1)
+    theta_rmse = np.sqrt(error2[2, ...].sum(axis=0))
+    theta_rmse_vs_time = theta_rmse.mean(axis=1)
+    theta_inc_vs_time = theta_lcr.mean(axis=1)
 
     # PLOTS: Performance Scores
     plt.figure()
-    g = GridSpec(4, 3)
+    g = GridSpec(6, 3)
 
     plt.subplot(g[0, :2])
     plt.ylabel('RMSE')
@@ -249,6 +257,18 @@ def reentry_simple_gpq_demo(dur=30, tau=0.1, mc=100):
     plt.plot(time_ind, vel_inc_vs_time[:, 1], label='UKF', color='r')
     plt.legend()
 
+    plt.subplot(g[4, :2])
+    plt.ylabel('RMSE')
+    plt.plot(time_ind, theta_rmse_vs_time[:, 0], label='GPQKF', color='g')
+    plt.plot(time_ind, theta_rmse_vs_time[:, 1], label='UKF', color='r')
+    plt.legend()
+
+    plt.subplot(g[5, :2])
+    plt.ylabel('Inclination')
+    plt.plot(time_ind, theta_inc_vs_time[:, 0], label='GPQKF', color='g')
+    plt.plot(time_ind, theta_inc_vs_time[:, 1], label='UKF', color='r')
+    plt.legend()
+
     # Box plots of time-averaged scores
     plt.subplot(g[0, 2:])
     plt.boxplot(pos_rmse.mean(axis=0), labels=['GPQKF', 'UKF'])
@@ -261,6 +281,12 @@ def reentry_simple_gpq_demo(dur=30, tau=0.1, mc=100):
 
     plt.subplot(g[3, 2:])
     plt.boxplot(vel_lcr.mean(axis=0), labels=['GPQKF', 'UKF'])
+
+    plt.subplot(g[4, 2:])
+    plt.boxplot(theta_rmse.mean(axis=0), labels=['GPQKF', 'UKF'])
+
+    plt.subplot(g[5, 2:])
+    plt.boxplot(theta_rmse.mean(axis=0), labels=['GPQKF', 'UKF'])
 
     plt.show()
 
@@ -384,7 +410,7 @@ def reentry_simple_trajectory_plot(time, x):
     savefig('reentry_pos_vel')
 
 if __name__ == '__main__':
-    import pickle
+    # import pickle
     # get simulation results
     # time, x, mean, cov = reentry_simple_data(mc=100)
     #
@@ -395,12 +421,12 @@ if __name__ == '__main__':
     #     f.close()
 
     # load pickled data
-    print('Unpickling data ...')
-    with open('reentry_data_mc100_tau0.1.dat', 'rb') as f:
-        time, x, mean, cov = pickle.load(f)
-        f.close()
+    # print('Unpickling data ...')
+    # with open('reentry_data_mc100_tau0.1.dat', 'rb') as f:
+    #     time, x, mean, cov = pickle.load(f)
+    #     f.close()
 
     # calculate scores and generate publication ready figures
     # reentry_simple_plots(time, x, mean, cov)
-    reentry_simple_trajectory_plot(time, x)
-
+    # reentry_simple_trajectory_plot(time, x)
+    reentry_simple_gpq_demo()
