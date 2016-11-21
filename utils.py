@@ -48,6 +48,7 @@ def mse_matrix(x, m):
     -------
 
     """
+    x, m = np.atleast_2d(x, m)
 
     d, mc_sims = m.shape
     dx = x - m
@@ -105,6 +106,8 @@ def log_cred_ratio(x, m, P, MSE):
            in Information Fusion, 2006 9th International Conference on, 2006, pp. 1–8.
 
     """
+    x, m = np.atleast_1d(x, m)
+    P, MSE = np.atleast_2d(P, MSE)
 
     dx = x - m
     dx_icov_dx = dx.dot(np.linalg.inv(P)).dot(dx)
@@ -129,6 +132,8 @@ def nll(x, m, P):
     -------
 
     """
+    x, m = np.atleast_1d(x, m)
+    P = np.atleast_2d(P)
 
     dx = x - m
     d = x.shape[0]
