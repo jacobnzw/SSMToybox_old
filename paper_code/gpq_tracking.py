@@ -136,10 +136,10 @@ def reentry_simple_gpq_demo(dur=30, tau=0.1, mc=100):
         y[..., i] = sys.simulate_measurements(x[..., i], mc_per_step=1).squeeze()
 
     # GPQKF kernel parameters
-    # hdyn = {'alpha': 1.0, 'el': 3 * [20]}
-    # hobs = {'alpha': 1.0, 'el': [20, 1e2, 1e2]}
-    hdyn = {'alpha': 1.0, 'el': [7, 7, 7]}
-    hobs = {'alpha': 1.0, 'el': [7, 20, 20]}
+    hdyn = {'alpha': 0.5, 'el': [10, 10, 20]}
+    hobs = {'alpha': 0.25, 'el': [10, 20, 20]}
+    # hdyn = {'alpha': 1.0, 'el': [7, 7, 7]}
+    # hobs = {'alpha': 1.0, 'el': [7, 20, 20]}
 
     # Initialize model
     ssm = ReentryRadarSimpleModel(dt=tau)
@@ -240,34 +240,29 @@ def reentry_simple_gpq_demo(dur=30, tau=0.1, mc=100):
     plt.legend()
 
     plt.subplot(g[1, :2])
-    plt.ylabel('Inclination')
+    plt.ylabel(r'$\nu$')
     plt.plot(time_ind, pos_inc_vs_time[:, 0], label='GPQKF', color='g')
     plt.plot(time_ind, pos_inc_vs_time[:, 1], label='UKF', color='r')
-    plt.legend()
 
     plt.subplot(g[2, :2])
     plt.ylabel('RMSE')
     plt.plot(time_ind, vel_rmse_vs_time[:, 0], label='GPQKF', color='g')
     plt.plot(time_ind, vel_rmse_vs_time[:, 1], label='UKF', color='r')
-    plt.legend()
 
     plt.subplot(g[3, :2])
-    plt.ylabel('Inclination')
+    plt.ylabel(r'$\nu$')
     plt.plot(time_ind, vel_inc_vs_time[:, 0], label='GPQKF', color='g')
     plt.plot(time_ind, vel_inc_vs_time[:, 1], label='UKF', color='r')
-    plt.legend()
 
     plt.subplot(g[4, :2])
     plt.ylabel('RMSE')
     plt.plot(time_ind, theta_rmse_vs_time[:, 0], label='GPQKF', color='g')
     plt.plot(time_ind, theta_rmse_vs_time[:, 1], label='UKF', color='r')
-    plt.legend()
 
     plt.subplot(g[5, :2])
-    plt.ylabel('Inclination')
+    plt.ylabel(r'$\nu$')
     plt.plot(time_ind, theta_inc_vs_time[:, 0], label='GPQKF', color='g')
     plt.plot(time_ind, theta_inc_vs_time[:, 1], label='UKF', color='r')
-    plt.legend()
 
     # Box plots of time-averaged scores
     plt.subplot(g[0, 2:])
