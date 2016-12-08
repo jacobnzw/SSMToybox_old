@@ -1,6 +1,6 @@
 from utils import *
 import numpy.linalg as la
-# from paper_code.journal_figure import *
+from paper_code.journal_figure import *
 import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
 from inference.gpquad import GPQKalman
@@ -136,8 +136,8 @@ def reentry_simple_gpq_demo(dur=30, tau=0.1, mc=100):
         y[..., i] = sys.simulate_measurements(x[..., i], mc_per_step=1).squeeze()
 
     # GPQKF kernel parameters
-    hdyn = {'alpha': 0.5, 'el': [10, 10, 20]}
-    hobs = {'alpha': 0.25, 'el': [10, 20, 20]}
+    hdyn = {'alpha': 0.5, 'el': [10, 10, 10]}
+    hobs = {'alpha': 0.5, 'el': [15, 20, 20]}
     # hdyn = {'alpha': 1.0, 'el': [7, 7, 7]}
     # hobs = {'alpha': 1.0, 'el': [7, 20, 20]}
 
@@ -216,7 +216,7 @@ def reentry_simple_gpq_demo(dur=30, tau=0.1, mc=100):
                 vel_lcr[k, imc, a] = log_cred_ratio(x[1, k, imc], mean[1, k, imc, a],
                                                     cov[1, 1, k, imc, a], vel_mse)
                 theta_lcr[k, imc, a] = log_cred_ratio(x[2, k, imc], mean[2, k, imc, a],
-                                                      cov[2, 2, k, imc, a], vel_mse)
+                                                      cov[2, 2, k, imc, a], theta_mse)
 
     # Averaged position/velocity RMSE and inclination in time
     pos_rmse = np.sqrt(error2[0, na, ...].sum(axis=0))
@@ -233,62 +233,63 @@ def reentry_simple_gpq_demo(dur=30, tau=0.1, mc=100):
     plt.figure()
     g = GridSpec(6, 3)
 
-    plt.subplot(g[0, :2])
+    plt.subplot(g[:2, :2])
     plt.ylabel('RMSE')
-    plt.plot(time_ind, pos_rmse_vs_time[:, 0], label='GPQKF', color='g')
-    plt.plot(time_ind, pos_rmse_vs_time[:, 1], label='UKF', color='r')
+    plt.plot(time_ind[1:], pos_rmse_vs_time[1:, 0], label='GPQKF', color='g')
+    plt.plot(time_ind[1:], pos_rmse_vs_time[1:, 1], label='UKF', color='r')
     plt.legend()
 
-    plt.subplot(g[1, :2])
+    plt.subplot(g[2:4, :2])
+    plt.ylabel('RMSE')
+    plt.plot(time_ind[1:], vel_rmse_vs_time[1:, 0], label='GPQKF', color='g')
+    plt.plot(time_ind[1:], vel_rmse_vs_time[1:, 1], label='UKF', color='r')
+
+    plt.subplot(g[4:, :2])
+    plt.ylabel('RMSE')
+    plt.plot(time_ind[1:], theta_rmse_vs_time[1:, 0], label='GPQKF', color='g')
+    plt.plot(time_ind[1:], theta_rmse_vs_time[1:, 1], label='UKF', color='r')
+
+    # Box plots of time-averaged scores
+    plt.subplot(g[:2, 2:])
+    plt.boxplot(pos_rmse.mean(axis=0), labels=['GPQKF', 'UKF'])
+
+    plt.subplot(g[2:4, 2:])
+    plt.boxplot(vel_rmse.mean(axis=0), labels=['GPQKF', 'UKF'])
+
+    plt.subplot(g[4:, 2:])
+    plt.boxplot(theta_rmse.mean(axis=0), labels=['GPQKF', 'UKF'])
+    plt.show()
+
+    plt.figure()
+    g = GridSpec(6, 3)
+
+    plt.subplot(g[:2, :2])
     plt.ylabel(r'$\nu$')
     plt.plot(time_ind, pos_inc_vs_time[:, 0], label='GPQKF', color='g')
     plt.plot(time_ind, pos_inc_vs_time[:, 1], label='UKF', color='r')
 
-    plt.subplot(g[2, :2])
-    plt.ylabel('RMSE')
-    plt.plot(time_ind, vel_rmse_vs_time[:, 0], label='GPQKF', color='g')
-    plt.plot(time_ind, vel_rmse_vs_time[:, 1], label='UKF', color='r')
-
-    plt.subplot(g[3, :2])
+    plt.subplot(g[2:4, :2])
     plt.ylabel(r'$\nu$')
     plt.plot(time_ind, vel_inc_vs_time[:, 0], label='GPQKF', color='g')
     plt.plot(time_ind, vel_inc_vs_time[:, 1], label='UKF', color='r')
 
-    plt.subplot(g[4, :2])
-    plt.ylabel('RMSE')
-    plt.plot(time_ind, theta_rmse_vs_time[:, 0], label='GPQKF', color='g')
-    plt.plot(time_ind, theta_rmse_vs_time[:, 1], label='UKF', color='r')
-
-    plt.subplot(g[5, :2])
+    plt.subplot(g[4:, :2])
     plt.ylabel(r'$\nu$')
     plt.plot(time_ind, theta_inc_vs_time[:, 0], label='GPQKF', color='g')
     plt.plot(time_ind, theta_inc_vs_time[:, 1], label='UKF', color='r')
 
-    # Box plots of time-averaged scores
-    plt.subplot(g[0, 2:])
-    plt.boxplot(pos_rmse.mean(axis=0), labels=['GPQKF', 'UKF'])
-
-    plt.subplot(g[1, 2:])
+    plt.subplot(g[:2, 2:])
     plt.boxplot(pos_lcr.mean(axis=0), labels=['GPQKF', 'UKF'])
 
-    plt.subplot(g[2, 2:])
-    plt.boxplot(vel_rmse.mean(axis=0), labels=['GPQKF', 'UKF'])
-
-    plt.subplot(g[3, 2:])
+    plt.subplot(g[2:4, 2:])
     plt.boxplot(vel_lcr.mean(axis=0), labels=['GPQKF', 'UKF'])
 
-    plt.subplot(g[4, 2:])
-    plt.boxplot(theta_rmse.mean(axis=0), labels=['GPQKF', 'UKF'])
-
-    plt.subplot(g[5, 2:])
-    plt.boxplot(theta_rmse.mean(axis=0), labels=['GPQKF', 'UKF'])
-
+    plt.subplot(g[4:, 2:])
+    plt.boxplot(theta_lcr.mean(axis=0), labels=['GPQKF', 'UKF'])
     plt.show()
 
     # TODO: pandas tables for printing into latex
-    print('{:=^30}'.format(' Position '))
     print('Average RMSE: {}'.format(np.sqrt(error2.sum(axis=0)).mean(axis=(0, 1))))
-    print('Average I2: {}'.format(pos_inc_vs_time.mean(axis=0)))
 
 
 def reentry_simple_data(dur=30, tau=0.1, mc=100):
@@ -307,8 +308,10 @@ def reentry_simple_data(dur=30, tau=0.1, mc=100):
     # GPQKF kernel parameters
     # hdyn = {'alpha': 1.0, 'el': 3 * [20]}
     # hobs = {'alpha': 1.0, 'el': [20, 1e2, 1e2]}
-    hdyn = {'alpha': 1.0, 'el': [7, 7, 7]}
-    hobs = {'alpha': 1.0, 'el': [7, 20, 20]}
+    # hdyn = {'alpha': 1.0, 'el': [7, 7, 7]}
+    # hobs = {'alpha': 1.0, 'el': [7, 20, 20]}
+    hdyn = {'alpha': 0.5, 'el': [10, 10, 10]}
+    hobs = {'alpha': 0.5, 'el': [15, 20, 20]}
 
     # Initialize model
     ssm = ReentryRadarSimpleModel(dt=tau)
@@ -340,46 +343,82 @@ def reentry_simple_plots(time, x, mean, cov):
     error2 = mean.copy()
     pos_lcr = np.zeros((steps, mc, num_alg))
     vel_lcr = pos_lcr.copy()
+    theta_lcr = pos_lcr.copy()
 
     print("Calculating scores ...")
     for a in range(num_alg):
         for k in range(steps):
-            pos_mse = mse_matrix(x[:1, k, :], mean[:1, k, :, a])
-            vel_mse = mse_matrix(x[1:2, k, :], mean[1:2, k, :, a])
+            pos_mse = mse_matrix(x[0, na, k, :], mean[0, na, k, :, a])
+            vel_mse = mse_matrix(x[1, na, k, :], mean[1, na, k, :, a])
+            theta_mse = mse_matrix(x[2, na, k, :], mean[2, na, k, :, a])
             for imc in range(mc):
                 error2[:, k, imc, a] = squared_error(x[:, k, imc], mean[:, k, imc, a])
-                pos_lcr[k, imc, a] = log_cred_ratio(x[:1, k, imc], mean[:1, k, imc, a],
-                                                    cov[:1, :1, k, imc, a], pos_mse)
-                vel_lcr[k, imc, a] = log_cred_ratio(x[1:2, k, imc], mean[1:2, k, imc, a],
-                                                    cov[1:2, 1:2, k, imc, a], vel_mse)
+                pos_lcr[k, imc, a] = log_cred_ratio(x[0, k, imc], mean[0, k, imc, a],
+                                                    cov[0, 0, k, imc, a], pos_mse)
+                vel_lcr[k, imc, a] = log_cred_ratio(x[1, k, imc], mean[1, k, imc, a],
+                                                    cov[1, 1, k, imc, a], vel_mse)
+                theta_lcr[k, imc, a] = log_cred_ratio(x[2, k, imc], mean[2, k, imc, a],
+                                                      cov[2, 2, k, imc, a], theta_mse)
 
     # Averaged position/velocity RMSE and inclination in time
-    pos_rmse = np.sqrt(error2[:1, ...].sum(axis=0))
+    pos_rmse = np.sqrt(error2[0, na, ...].sum(axis=0))
     pos_rmse_vs_time = pos_rmse.mean(axis=1)
     pos_inc_vs_time = pos_lcr.mean(axis=1)
+    vel_rmse = np.sqrt(error2[1, na, ...].sum(axis=0))
+    vel_rmse_vs_time = vel_rmse.mean(axis=1)
+    vel_inc_vs_time = vel_lcr.mean(axis=1)
+    theta_rmse = np.sqrt(error2[2, na, ...].sum(axis=0))
+    theta_rmse_vs_time = theta_rmse.mean(axis=1)
+    theta_inc_vs_time = theta_lcr.mean(axis=1)
 
-    fig = plt.figure(figsize=figsize())
+    # # RMSE
+    # fig = plt.figure(figsize=figsize())
+    # ax1 = fig.add_subplot(211, ylabel='RMSE')
+    # ax1.plot(time, pos_rmse_vs_time[:, 0], lw=2, label='GPQKF')
+    # ax1.plot(time, pos_rmse_vs_time[:, 1], lw=2, label='UKF')
+    # ax1.legend()
+    # ax1.tick_params(axis='both', which='both', top='off', right='off', labelright='off', labelbottom='off')
+    #
+    # # inclination indicator
+    # ax2 = fig.add_subplot(212, xlabel='time [s]', ylabel=r'$ \nu $', sharex=ax1)
+    # ax2.plot(time, pos_inc_vs_time[:, 0], lw=2, label='GPQKF')
+    # ax2.plot(time, pos_inc_vs_time[:, 1], lw=2, label='UKF')
+    # ax2.tick_params(axis='both', which='both', top='off', right='off', labelright='off')
+    # fig.tight_layout(pad=0.5)
 
-    # RMSE
-    ax1 = fig.add_subplot(211, ylabel='RMSE')
-    ax1.plot(time, pos_rmse_vs_time[:, 0], lw=2, label='GPQKF')
-    ax1.plot(time, pos_rmse_vs_time[:, 1], lw=2, label='UKF')
-    ax1.legend()
-    ax1.tick_params(axis='both', which='both', top='off', right='off', labelright='off', labelbottom='off')
+    # One figure for each RMSE/Inclination plot
+    fig = plt.figure(figsize=figsize(h_scale=0.45))
+    ax = fig.add_subplot(111)
+    ax.plot(time[1:], pos_rmse_vs_time[1:, 0], lw=2, label='GPQKF')
+    ax.plot(time[1:], pos_rmse_vs_time[1:, 1], lw=2, label='UKF')
+    ax.set_xlabel('time [k]')
+    ax.set_ylabel('RMSE')
+    plt.legend()
+    plt.tight_layout(pad=0)
+    savefig("reentry_position_rmse")
 
-    # inclination indicator
-    ax2 = fig.add_subplot(212, xlabel='time [s]', ylabel=r'$ \nu $', sharex=ax1)
-    ax2.plot(time, pos_inc_vs_time[:, 0], lw=2, label='GPQKF')
-    ax2.plot(time, pos_inc_vs_time[:, 1], lw=2, label='UKF')
-    ax2.tick_params(axis='both', which='both', top='off', right='off', labelright='off')
-    fig.tight_layout(pad=0.5)
+    fig = plt.figure(figsize=figsize(h_scale=0.45))
+    ax = fig.add_subplot(111)
+    ax.plot(time, vel_rmse_vs_time[:, 0], lw=2, label='GPQKF')
+    ax.plot(time, vel_rmse_vs_time[:, 1], lw=2, label='UKF')
+    ax.set_xlabel('time [k]')
+    ax.set_ylabel('RMSE')
+    plt.legend()
+    plt.tight_layout(pad=0)
+    savefig("reentry_velocity_rmse")
 
-    print("Saving figure ...")
-    savefig("reentry_position_rmse_inc")
+    fig = plt.figure(figsize=figsize(h_scale=0.45))
+    ax = fig.add_subplot(111)
+    ax.plot(time, theta_rmse_vs_time[:, 0], lw=2, label='GPQKF')
+    ax.plot(time, theta_rmse_vs_time[:, 1], lw=2, label='UKF')
+    ax.set_xlabel('time [k]')
+    ax.set_ylabel('RMSE')
+    plt.legend()
+    plt.tight_layout(pad=0)
+    savefig("reentry_theta_rmse")
 
 
 def reentry_simple_trajectory_plot(time, x):
-    d, steps, mc, num_alg = mean.shape
 
     plt.style.use('seaborn-deep')
     # PLOTS: Trajectories
@@ -405,23 +444,23 @@ def reentry_simple_trajectory_plot(time, x):
     savefig('reentry_pos_vel')
 
 if __name__ == '__main__':
-    # import pickle
-    # get simulation results
+    import pickle
+    # # get simulation results
     # time, x, mean, cov = reentry_simple_data(mc=100)
     #
     # # dump simulated data for fast re-plotting
     # print('Pickling data ...')
-    # with open('reentry_data_mc100_tau0.1.dat', 'wb') as f:
+    # with open('reentry_data_mc100_tau0.1_ver2.dat', 'wb') as f:
     #     pickle.dump((time, x, mean, cov), f)
     #     f.close()
 
     # load pickled data
-    # print('Unpickling data ...')
-    # with open('reentry_data_mc100_tau0.1.dat', 'rb') as f:
-    #     time, x, mean, cov = pickle.load(f)
-    #     f.close()
+    print('Unpickling data ...')
+    with open('reentry_data_mc100_tau0.1_ver2.dat', 'rb') as f:
+        time, x, mean, cov = pickle.load(f)
+        f.close()
 
     # calculate scores and generate publication ready figures
-    # reentry_simple_plots(time, x, mean, cov)
+    reentry_simple_plots(time, x, mean, cov)
     # reentry_simple_trajectory_plot(time, x)
-    reentry_simple_gpq_demo()
+    # reentry_simple_gpq_demo()
