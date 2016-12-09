@@ -2,6 +2,8 @@ import numpy as np
 import matplotlib as mpl
 mpl.use('pgf')
 
+# TODO: turn into a class, so that all the properties coould be set manually, multiple instances means multiple setups
+
 
 def figsize(w_scale=1.0, h_scale=0.85):
     """
