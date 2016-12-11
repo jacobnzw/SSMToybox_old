@@ -332,89 +332,106 @@ def reentry_simple_data(dur=30, tau=0.1, mc=100):
             mean[..., imc, ia], cov[..., imc, ia] = a.forward_pass(y[..., imc])
             a.reset()
 
-    # time index for plotting
-    time_ind = np.linspace(1, dur, x.shape[1])
-
-    return time_ind, x, mean, cov
-
-
-def reentry_simple_plots(time, x, mean, cov):
-    d, steps, mc, num_alg = mean.shape
+    # compute RMSE, Inclination indicator for velocity, position and ballistic parameter
     error2 = mean.copy()
-    pos_lcr = np.zeros((steps, mc, num_alg))
-    vel_lcr = pos_lcr.copy()
-    theta_lcr = pos_lcr.copy()
+    lcr = mean.copy()
 
     print("Calculating scores ...")
-    # TODO: make into function
-    # TODO: have one variable for all state dimensions
     for a in range(num_alg):
         for k in range(steps):
-            pos_mse = mse_matrix(x[0, na, k, :], mean[0, na, k, :, a])
-            vel_mse = mse_matrix(x[1, na, k, :], mean[1, na, k, :, a])
-            theta_mse = mse_matrix(x[2, na, k, :], mean[2, na, k, :, a])
             for imc in range(mc):
                 error2[:, k, imc, a] = squared_error(x[:, k, imc], mean[:, k, imc, a])
-                pos_lcr[k, imc, a] = log_cred_ratio(x[0, k, imc], mean[0, k, imc, a],
-                                                    cov[0, 0, k, imc, a], pos_mse)
-                vel_lcr[k, imc, a] = log_cred_ratio(x[1, k, imc], mean[1, k, imc, a],
-                                                    cov[1, 1, k, imc, a], vel_mse)
-                theta_lcr[k, imc, a] = log_cred_ratio(x[2, k, imc], mean[2, k, imc, a],
-                                                      cov[2, 2, k, imc, a], theta_mse)
+                for dim in range(d):
+                    mse = mse_matrix(x[dim, na, k, :], mean[dim, na, k, :, a])
+                    lcr[dim, k, imc, a] = log_cred_ratio(x[dim, k, imc], mean[dim, k, imc, a],
+                                                         cov[dim, dim, k, imc, a], mse)
 
     # Averaged position/velocity RMSE and inclination in time
-    pos_rmse = np.sqrt(error2[0, na, ...].sum(axis=0))
-    pos_rmse_vs_time = pos_rmse.mean(axis=1)
-    pos_inc_vs_time = pos_lcr.mean(axis=1)
-    vel_rmse = np.sqrt(error2[1, na, ...].sum(axis=0))
-    vel_rmse_vs_time = vel_rmse.mean(axis=1)
-    vel_inc_vs_time = vel_lcr.mean(axis=1)
-    theta_rmse = np.sqrt(error2[2, na, ...].sum(axis=0))
-    theta_rmse_vs_time = theta_rmse.mean(axis=1)
-    theta_inc_vs_time = theta_lcr.mean(axis=1)
+    rmse_vs_time = np.zeros((d, steps, num_alg))
+    lcr_vs_time = rmse_vs_time.copy()
+    for dim in range(d):
+        rmse_vs_time[dim, ...] = np.sqrt(error2[dim, na, ...].sum(axis=0)).mean(axis=1)
+        lcr_vs_time[dim, ...] = lcr.mean(axis=2)
 
+    # time index for plotting
+    time = np.linspace(1, dur, x.shape[1])
+
+    # Pack the data into dictionary
+    data_scores = dict([(name, eval(name)) for name in ['time', 'x', 'mean', 'cov', 'rmse_vs_time', 'lcr_vs_time']])
+    return data_scores
+
+
+def reentry_simple_plots(data_scores):
+
+    # unpack from dictionary
+    x = data_scores['x']
+    mean = data_scores['mean']
+    cov = data_scores['cov']
+    time = data_scores['time']
+    rmse_vs_time = data_scores['rmse_vs_time']
+    lcr_vs_time = data_scores['lcr_vs_time']
+
+    d, steps, mc, num_alg = rmse_vs_time.shape
     # RMSE
-    fig = plt.figure(figsize=figsize())
-    # TODO: try to achieve common Y label by first placing plt.subplots() and then fig.add_subplot(111, frameon=False)
-    ax1 = fig.add_subplot(311, ylabel='RMSE')
-    ax1.plot(time, pos_rmse_vs_time[:, 0], lw=2, label='GPQKF')
-    ax1.plot(time, pos_rmse_vs_time[:, 1], lw=2, label='UKF')
-    ax1.legend()
-    ax1.tick_params(axis='both', which='both', top='off', right='off', labelright='off', labelbottom='off')
-
-    ax2 = fig.add_subplot(312, sharex=ax1, ylabel='RMSE')
-    ax2.plot(time, vel_rmse_vs_time[:, 0], lw=2, label='GPQKF')
-    ax2.plot(time, vel_rmse_vs_time[:, 1], lw=2, label='UKF')
-    ax2.tick_params(axis='both', which='both', top='off', right='off', labelright='off', labelbottom='off')
-
-    ax3 = fig.add_subplot(313, sharex=ax1, xlabel='time [s]', ylabel='RMSE')
-    ax3.plot(time, theta_rmse_vs_time[:, 0], lw=2, label='GPQKF')
-    ax3.plot(time, theta_rmse_vs_time[:, 1], lw=2, label='UKF')
-    ax3.tick_params(axis='both', which='both', top='off', right='off', labelright='off')
-
+    # TODO: try to achieve common Y label by plt.subplots() and then fig.add_subplot(111, frameon=False)
+    fig, axes = plt.subplots(3, 1, sharex=True, figsize=figsize())
+    for iax, ax in enumerate(axes):
+        for alg in range(num_alg):
+            ax.plot(time, rmse_vs_time[iax, :, alg], lw=2)
+    plt.xlabel('time [s]')
     fig.tight_layout(pad=0, h_pad=0.08)
     savefig("reentry_state_rmse")
 
-    # inclination indicator
-    fig = plt.figure(figsize=figsize())
-    ax1 = fig.add_subplot(311, ylabel=r'Incl. $\nu$')
-    ax1.plot(time, pos_inc_vs_time[:, 0], lw=2, label='GPQKF')
-    ax1.plot(time, pos_inc_vs_time[:, 1], lw=2, label='UKF')
-    ax1.legend()
-    ax1.tick_params(axis='both', which='both', top='off', right='off', labelright='off', labelbottom='off')
-
-    ax2 = fig.add_subplot(312, sharex=ax1, ylabel=r'Incl. $\nu$')
-    ax2.plot(time, vel_inc_vs_time[:, 0], lw=2, label='GPQKF')
-    ax2.plot(time, vel_inc_vs_time[:, 1], lw=2, label='UKF')
-    ax2.tick_params(axis='both', which='both', top='off', right='off', labelright='off', labelbottom='off')
-
-    ax3 = fig.add_subplot(313, sharex=ax1, xlabel='time [s]', ylabel=r'Incl. $\nu$')
-    ax3.plot(time, theta_inc_vs_time[:, 0], lw=2, label='GPQKF')
-    ax3.plot(time, theta_inc_vs_time[:, 1], lw=2, label='UKF')
-    ax3.tick_params(axis='both', which='both', top='off', right='off', labelright='off')
-
+    # Inclination
+    fig, axes = plt.subplots(3, 1, sharex=True, figsize=figsize())
+    for iax, ax in enumerate(axes):
+        for alg in range(num_alg):
+            ax.plot(time, lcr_vs_time[iax, :, alg], lw=2)
+    plt.xlabel('time [s]')
     fig.tight_layout(pad=0, h_pad=0.08)
     savefig("reentry_state_inclination")
+
+    # RMSE
+    # fig = plt.figure(figsize=figsize())
+    # ax1 = fig.add_subplot(311, ylabel='RMSE')
+    # ax1.plot(time, pos_rmse_vs_time[:, 0], lw=2, label='GPQKF')
+    # ax1.plot(time, pos_rmse_vs_time[:, 1], lw=2, label='UKF')
+    # ax1.legend()
+    # ax1.tick_params(axis='both', which='both', top='off', right='off', labelright='off', labelbottom='off')
+    #
+    # ax2 = fig.add_subplot(312, sharex=ax1, ylabel='RMSE')
+    # ax2.plot(time, vel_rmse_vs_time[:, 0], lw=2, label='GPQKF')
+    # ax2.plot(time, vel_rmse_vs_time[:, 1], lw=2, label='UKF')
+    # ax2.tick_params(axis='both', which='both', top='off', right='off', labelright='off', labelbottom='off')
+    #
+    # ax3 = fig.add_subplot(313, sharex=ax1, xlabel='time [s]', ylabel='RMSE')
+    # ax3.plot(time, theta_rmse_vs_time[:, 0], lw=2, label='GPQKF')
+    # ax3.plot(time, theta_rmse_vs_time[:, 1], lw=2, label='UKF')
+    # ax3.tick_params(axis='both', which='both', top='off', right='off', labelright='off')
+    #
+    # fig.tight_layout(pad=0, h_pad=0.08)
+    # savefig("reentry_state_rmse")
+
+    # inclination indicator
+    # fig = plt.figure(figsize=figsize())
+    # ax1 = fig.add_subplot(311, ylabel=r'Incl. $\nu$')
+    # ax1.plot(time, pos_inc_vs_time[:, 0], lw=2, label='GPQKF')
+    # ax1.plot(time, pos_inc_vs_time[:, 1], lw=2, label='UKF')
+    # ax1.legend()
+    # ax1.tick_params(axis='both', which='both', top='off', right='off', labelright='off', labelbottom='off')
+    #
+    # ax2 = fig.add_subplot(312, sharex=ax1, ylabel=r'Incl. $\nu$')
+    # ax2.plot(time, vel_inc_vs_time[:, 0], lw=2, label='GPQKF')
+    # ax2.plot(time, vel_inc_vs_time[:, 1], lw=2, label='UKF')
+    # ax2.tick_params(axis='both', which='both', top='off', right='off', labelright='off', labelbottom='off')
+    #
+    # ax3 = fig.add_subplot(313, sharex=ax1, xlabel='time [s]', ylabel=r'Incl. $\nu$')
+    # ax3.plot(time, theta_inc_vs_time[:, 0], lw=2, label='GPQKF')
+    # ax3.plot(time, theta_inc_vs_time[:, 1], lw=2, label='UKF')
+    # ax3.tick_params(axis='both', which='both', top='off', right='off', labelright='off')
+    #
+    # fig.tight_layout(pad=0, h_pad=0.08)
+    # savefig("reentry_state_inclination")
 
     # One figure for each RMSE/Inclination plot
     # fig = plt.figure(figsize=figsize(h_scale=0.45))
