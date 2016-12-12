@@ -350,35 +350,49 @@ def reentry_simple_data(dur=30, tau=0.1, mc=100):
     rmse_vs_time = np.zeros((d, steps, num_alg))
     lcr_vs_time = rmse_vs_time.copy()
     for dim in range(d):
-        rmse_vs_time[dim, ...] = np.sqrt(error2[dim, na, ...].sum(axis=0)).mean(axis=1)
-        lcr_vs_time[dim, ...] = lcr.mean(axis=2)
+        rmse_vs_time[dim, ...] = np.sqrt(error2[dim, ...]).mean(axis=1)
+    lcr_vs_time = lcr.mean(axis=2)
 
     # time index for plotting
     time = np.linspace(1, dur, x.shape[1])
 
     # Pack the data into dictionary
-    data_scores = dict([(name, eval(name)) for name in ['time', 'x', 'mean', 'cov', 'rmse_vs_time', 'lcr_vs_time']])
+    # data_scores = dict([(name, eval(name)) for name in ['time', 'x', 'mean', 'cov', 'rmse_vs_time', 'lcr_vs_time']])
+    data_scores = {
+        'time': time,
+        'x': x,
+        'mean': mean,
+        'cov': cov,
+        'rmse_vs_time': rmse_vs_time,
+        'lcr_vs_time': lcr_vs_time
+    }
     return data_scores
 
 
 def reentry_simple_plots(data_scores):
 
     # unpack from dictionary
-    x = data_scores['x']
-    mean = data_scores['mean']
-    cov = data_scores['cov']
+    # x = data_scores['x']
+    # mean = data_scores['mean']
+    # cov = data_scores['cov']
     time = data_scores['time']
     rmse_vs_time = data_scores['rmse_vs_time']
     lcr_vs_time = data_scores['lcr_vs_time']
 
-    d, steps, mc, num_alg = rmse_vs_time.shape
+    d, steps, num_alg = rmse_vs_time.shape
     # RMSE
-    # TODO: try to achieve common Y label by plt.subplots() and then fig.add_subplot(111, frameon=False)
     fig, axes = plt.subplots(3, 1, sharex=True, figsize=figsize())
+    fig.add_subplot(111, frameon=False)
+    plt.tick_params(labelcolor='none', top='off', bottom='off', left='off', right='off',
+                    labelbottom='off', labelright='off')
+    # TODO: common Y label too much padding even with tight_layout() and numbering still shows up.
+    plt.ylabel("common Y")
+    plt.xlabel('time[s]')
+
     for iax, ax in enumerate(axes):
         for alg in range(num_alg):
             ax.plot(time, rmse_vs_time[iax, :, alg], lw=2)
-    plt.xlabel('time [s]')
+    axes[-1].set_xlabel('time [s]')
     fig.tight_layout(pad=0, h_pad=0.08)
     savefig("reentry_state_rmse")
 
@@ -522,23 +536,23 @@ def reentry_simple_trajectory_plot(time, x):
 
 if __name__ == '__main__':
     import pickle
-    # # get simulation results
-    # time, x, mean, cov = reentry_simple_data(mc=100)
-    #
-    # # dump simulated data for fast re-plotting
-    # print('Pickling data ...')
-    # with open('reentry_data_mc100_tau0.1_ver2.dat', 'wb') as f:
-    #     pickle.dump((time, x, mean, cov), f)
-    #     f.close()
+    # get simulation results
+    print('Running simulations ...')
+    data_dict = reentry_simple_data(mc=10)
 
-    # TODO: pickle data and scores instead just data for speed
+    # dump simulated data for fast re-plotting
+    print('Pickling data ...')
+    with open('reentry_score_data.dat', 'wb') as f:
+        pickle.dump(data_dict, f)
+        f.close()
+
     # load pickled data
     print('Unpickling data ...')
-    with open('reentry_data_mc100_tau0.1_ver2.dat', 'rb') as f:
-        time, x, mean, cov = pickle.load(f)
+    with open('reentry_score_data.dat', 'rb') as f:
+        data_dict = pickle.load(f)
         f.close()
 
     # calculate scores and generate publication ready figures
-    reentry_simple_plots(time, x, mean, cov)
+    reentry_simple_plots(data_dict)
     # reentry_simple_trajectory_plot(time, x)
     # reentry_simple_gpq_demo()
