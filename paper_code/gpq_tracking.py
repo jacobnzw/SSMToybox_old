@@ -372,9 +372,6 @@ def reentry_simple_data(dur=30, tau=0.1, mc=100):
 def reentry_simple_plots(data_scores):
 
     # unpack from dictionary
-    # x = data_scores['x']
-    # mean = data_scores['mean']
-    # cov = data_scores['cov']
     time = data_scores['time']
     rmse_vs_time = data_scores['rmse_vs_time']
     lcr_vs_time = data_scores['lcr_vs_time']
@@ -382,27 +379,26 @@ def reentry_simple_plots(data_scores):
     d, steps, num_alg = rmse_vs_time.shape
     # RMSE
     fig, axes = plt.subplots(3, 1, sharex=True, figsize=figsize())
-    fig.add_subplot(111, frameon=False)
-    plt.tick_params(labelcolor='none', top='off', bottom='off', left='off', right='off',
-                    labelbottom='off', labelright='off')
-    # TODO: common Y label too much padding even with tight_layout() and numbering still shows up.
-    plt.ylabel("common Y")
-    plt.xlabel('time[s]')
-
+    fig.text(0.00, 0.5, 'RMSE', va='center', rotation='vertical')
     for iax, ax in enumerate(axes):
         for alg in range(num_alg):
             ax.plot(time, rmse_vs_time[iax, :, alg], lw=2)
     axes[-1].set_xlabel('time [s]')
-    fig.tight_layout(pad=0, h_pad=0.08)
+    axes[0].legend(['GPQKF', 'UKF'])
+    fig.tight_layout(pad=0)
+    fig.subplots_adjust(left=0.09)  # make room for common Y label
     savefig("reentry_state_rmse")
 
     # Inclination
     fig, axes = plt.subplots(3, 1, sharex=True, figsize=figsize())
+    fig.text(0.00, 0.5, r'Inclination $\nu$', va='center', rotation='vertical')
     for iax, ax in enumerate(axes):
         for alg in range(num_alg):
             ax.plot(time, lcr_vs_time[iax, :, alg], lw=2)
-    plt.xlabel('time [s]')
-    fig.tight_layout(pad=0, h_pad=0.08)
+    axes[-1].set_xlabel('time [s]')
+    axes[0].legend(['GPQKF', 'UKF'], loc='upper left')
+    fig.tight_layout(pad=0)
+    fig.subplots_adjust(left=0.08)  # make room for common Y label
     savefig("reentry_state_inclination")
 
     # RMSE
@@ -536,15 +532,15 @@ def reentry_simple_trajectory_plot(time, x):
 
 if __name__ == '__main__':
     import pickle
-    # get simulation results
-    print('Running simulations ...')
-    data_dict = reentry_simple_data(mc=10)
-
-    # dump simulated data for fast re-plotting
-    print('Pickling data ...')
-    with open('reentry_score_data.dat', 'wb') as f:
-        pickle.dump(data_dict, f)
-        f.close()
+    # # get simulation results
+    # print('Running simulations ...')
+    # data_dict = reentry_simple_data(mc=100)
+    #
+    # # dump simulated data for fast re-plotting
+    # print('Pickling data ...')
+    # with open('reentry_score_data.dat', 'wb') as f:
+    #     pickle.dump(data_dict, f)
+    #     f.close()
 
     # load pickled data
     print('Unpickling data ...')
