@@ -205,7 +205,7 @@ def polar2cartesian_spiral_demo():
     pol_spiral = np.array([r, theta])
     pol_spiral_pt = np.array([r_pt, theta_pt])
 
-    fig = plt.figure(figsize=figsize(h_scale=1.2))
+    fig = plt.figure(figsize=figsize(h_scale=1.0))
     # PLOTS: Input moments in polar coordinates
     # ax = fig.add_subplot(121, projection='polar')
     # # ax.set_aspect('equal')
@@ -232,28 +232,32 @@ def polar2cartesian_spiral_demo():
     car_spiral_pt = np.apply_along_axis(polar2cartesian, 0, pol_spiral_pt, None)
 
     # PLOTS: Transformed moments in Cartesian coordinates
-    ax = fig.add_subplot(111)
+    ax = fig.add_subplot(111, projection='polar')
     ax.set_aspect('equal')
 
     # origin
-    ax.plot(0, 0, 'r+', ms=4)
+    ax.plot(0, 0, 'r+', ms=10)
 
     # spiral
-    ax.plot(car_spiral[0, :], car_spiral[1, :], color='r', lw=0.5, ls='--', alpha=0.5)
+    # ax.plot(car_spiral[0, :], car_spiral[1, :], color='r', lw=0.5, ls='--', alpha=0.5)
 
     # points on a spiral, i.e. input means
-    ax.plot(car_spiral_pt[0, :], car_spiral_pt[1, :], 'o', color='k', ms=1)
+    ax.plot(pol_spiral_pt[0, :], pol_spiral_pt[1, :], 'o', color='k', ms=4)
+    ax.text(pol_spiral_pt[0, 5]-0.15, pol_spiral_pt[1, 5]+0.75, r'$[r_i, \theta_i]$')
+    rgr = [2, 4, 6]
+    plt.rgrids(rgr, [str(r) for r in rgr])
+    ax.grid(True, linestyle=':', lw=1, alpha=0.5)
 
     # for every input mean and covariance
-    for i in range(num_mean):
-        for j in range(num_cov):
+    # for i in range(num_mean):
+    #     for j in range(num_cov):
+    #
+    #         # plot covariance ellipse
+    #         car_ellipse = np.apply_along_axis(polar2cartesian, 0, ellipse_points(mean[..., i], cov[..., 5]), None)
+    #         # car_ellipse = ellipse_points(mean[..., i], cov[..., -1])
+    #         ax.plot(car_ellipse[0, :], car_ellipse[1, :], color='k', lw=0.5)
 
-            # plot covariance ellipse
-            car_ellipse = np.apply_along_axis(polar2cartesian, 0, ellipse_points(mean[..., i], cov[..., 5]), None)
-            # car_ellipse = ellipse_points(mean[..., i], cov[..., -1])
-            ax.plot(car_ellipse[0, :], car_ellipse[1, :], color='k', lw=0.5)
-
-    fig.tight_layout(pad=0.5)
+    fig.tight_layout(pad=0.15)
 
     savefig('polar2cartesian_spiral')
 
