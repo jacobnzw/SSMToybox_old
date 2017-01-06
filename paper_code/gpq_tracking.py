@@ -375,10 +375,11 @@ def reentry_simple_plots(data_scores):
     time = data_scores['time']
     rmse_vs_time = data_scores['rmse_vs_time']
     lcr_vs_time = data_scores['lcr_vs_time']
+    printfig = FigurePrint()
 
     d, steps, num_alg = rmse_vs_time.shape
     # RMSE
-    fig, axes = plt.subplots(3, 1, sharex=True, figsize=figsize())
+    fig, axes = plt.subplots(3, 1, sharex=True, figsize=printfig.figsize(h_scale=1.2))
     fig.text(0.00, 0.5, 'RMSE', va='center', rotation='vertical')
     for iax, ax in enumerate(axes):
         for alg in range(num_alg):
@@ -386,11 +387,11 @@ def reentry_simple_plots(data_scores):
     axes[-1].set_xlabel('time [s]')
     axes[0].legend(['GPQKF', 'UKF'])
     fig.tight_layout(pad=0)
-    fig.subplots_adjust(left=0.09)  # make room for common Y label
-    savefig("reentry_state_rmse")
+    fig.subplots_adjust(left=0.13)  # make room for common Y label
+    printfig.savefig("reentry_state_rmse")
 
     # Inclination
-    fig, axes = plt.subplots(3, 1, sharex=True, figsize=figsize())
+    fig, axes = plt.subplots(3, 1, sharex=True, figsize=printfig.figsize(h_scale=1.2))
     fig.text(0.00, 0.5, r'Inclination $\nu$', va='center', rotation='vertical')
     for iax, ax in enumerate(axes):
         for alg in range(num_alg):
@@ -398,8 +399,8 @@ def reentry_simple_plots(data_scores):
     axes[-1].set_xlabel('time [s]')
     axes[0].legend(['GPQKF', 'UKF'], loc='upper left')
     fig.tight_layout(pad=0)
-    fig.subplots_adjust(left=0.08)  # make room for common Y label
-    savefig("reentry_state_inclination")
+    fig.subplots_adjust(left=0.13)  # make room for common Y label
+    printfig.savefig("reentry_state_inclination")
 
     # RMSE
     # fig = plt.figure(figsize=figsize())
@@ -505,18 +506,21 @@ def reentry_simple_plots(data_scores):
     # savefig("reentry_theta_inclination")
 
 
-def reentry_simple_trajectory_plot(time, x):
+def reentry_simple_trajectory_plot(data_scores):
+    time = data_scores['time']
+    x = data_scores['x']
 
-    plt.style.use('seaborn-deep')
+    # plt.style.use('seaborn-deep')
+    printfig = FigurePrint()
     # PLOTS: Trajectories
-    fig = plt.figure(figsize=figsize())
+    fig = plt.figure()
 
     # Altitude
     ax1 = fig.add_subplot(211)
     for i in range(10):
         ax1.plot(time, x[0, :, i], alpha=0.35, lw=1, color='k')
     ax1.plot(time, x[0, ...].mean(axis=1), color='r', ls='--')
-    ax1.set_ylabel('altitude [km]')
+    ax1.set_ylabel('Altitude [km]')
     ax1.tick_params(labelbottom='off')
 
     # Velocity
@@ -524,11 +528,11 @@ def reentry_simple_trajectory_plot(time, x):
     for i in range(10):
         ax2.plot(time, x[1, :, i], alpha=0.35, lw=1, color='k')
     ax2.plot(time, x[1, ...].mean(axis=1), color='r', ls='--')
-    ax2.set_ylabel('velocity [km/s]')
+    ax2.set_ylabel('Velocity [km/s]')
     ax2.set_xlabel('time [s]')
 
-    fig.tight_layout(pad=0.5)
-    savefig('reentry_pos_vel')
+    fig.tight_layout(pad=0)
+    printfig.savefig('reentry_pos_vel')
 
 if __name__ == '__main__':
     import pickle
@@ -549,6 +553,6 @@ if __name__ == '__main__':
         f.close()
 
     # calculate scores and generate publication ready figures
-    reentry_simple_plots(data_dict)
-    # reentry_simple_trajectory_plot(time, x)
+    # reentry_simple_plots(data_dict)
+    reentry_simple_trajectory_plot(data_dict)
     # reentry_simple_gpq_demo()

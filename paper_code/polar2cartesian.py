@@ -155,7 +155,8 @@ def polar2cartesian_skl_demo():
 
     # PLOT the SKL score for each MT and position on the spiral
     plt.style.use('seaborn-deep')
-    fig = plt.figure(figsize=figsize(1.0))
+    printfig = FigurePrint()
+    fig = plt.figure()
 
     # Average over mean indexes
     ax1 = fig.add_subplot(121)
@@ -171,10 +172,10 @@ def polar2cartesian_skl_demo():
         ax2.plot(np.rad2deg(theta_std), skl_dict[mt_str].mean(axis=0), marker='o', label=mt_str.upper())
     ax2.set_xlabel('Azimuth STD [$ \circ $]')
     ax2.legend()
-    fig.tight_layout(pad=0.5)
+    fig.tight_layout(pad=0)
 
     # save figure
-    savefig('polar2cartesian_skl')
+    printfig.savefig('polar2cartesian_skl')
 
 
 def polar2cartesian_spiral_demo():
@@ -205,7 +206,8 @@ def polar2cartesian_spiral_demo():
     pol_spiral = np.array([r, theta])
     pol_spiral_pt = np.array([r_pt, theta_pt])
 
-    fig = plt.figure(figsize=figsize(h_scale=1.0))
+    printfig = FigurePrint()
+    fig = plt.figure()
     # PLOTS: Input moments in polar coordinates
     # ax = fig.add_subplot(121, projection='polar')
     # # ax.set_aspect('equal')
@@ -257,9 +259,9 @@ def polar2cartesian_spiral_demo():
     #         # car_ellipse = ellipse_points(mean[..., i], cov[..., -1])
     #         ax.plot(car_ellipse[0, :], car_ellipse[1, :], color='k', lw=0.5)
 
-    fig.tight_layout(pad=0.15)
+    fig.tight_layout(pad=0.1)
 
-    savefig('polar2cartesian_spiral')
+    printfig.savefig('polar2cartesian_spiral')
 
 
 if __name__ == '__main__':
