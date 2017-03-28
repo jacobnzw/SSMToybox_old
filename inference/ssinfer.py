@@ -1,11 +1,13 @@
 from abc import ABCMeta, abstractmethod
+
 import numpy as np
 import numpy.linalg as la
+from numpy import newaxis as na
 from scipy.linalg import cho_factor, cho_solve, block_diag
 from scipy.stats import multivariate_normal
-from numpy import newaxis as na
-from models.ssmodel import StateSpaceModel, GaussianStateSpaceModel, StudentStateSpaceModel
-from transforms.mtform import MomentTransform
+
+from models.ssmodel import StateSpaceModel, StudentStateSpaceModel
+from mtran import MomentTransform
 
 
 class StateSpaceInference(metaclass=ABCMeta):
@@ -15,7 +17,7 @@ class StateSpaceInference(metaclass=ABCMeta):
         assert isinstance(ssm, StateSpaceModel)
         self.ssm = ssm
 
-        # separate moment transforms for system dynamics and measurement model
+        # separate moment bq for system dynamics and measurement model
         assert isinstance(tf_dyn, MomentTransform) and isinstance(tf_meas, MomentTransform)
         self.tf_dyn = tf_dyn
         self.tf_meas = tf_meas
@@ -307,7 +309,7 @@ class MarginalInference(StateSpaceInference):
     """
     Kalman state-space inference with marginalized moment transform parameters. Standard Gaussian is used as a
     prior on log-parameters (the parameters are assumed strictly positive). Aims to be used mainly with Bayesian
-    quadrature transforms, although, in principle, any moment transform with parameters fits into this framework.
+    quadrature bq, although, in principle, any moment transform with parameters fits into this framework.
 
 
     """
@@ -331,7 +333,7 @@ class MarginalInference(StateSpaceInference):
         self.param_jitter = 1e-8 * np.eye(self.param_dim)
 
         # Spherical-radial quadrature rule for marginalizing transform parameters
-        from transforms.quad import SphericalRadial
+        from mtran import SphericalRadial
         self.param_upts = SphericalRadial.unit_sigma_points(self.param_dim)
         self.param_wts = SphericalRadial.weights(self.param_dim)
         self.param_pts_num = self.param_upts.shape[1]

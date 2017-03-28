@@ -1,6 +1,6 @@
-from inference.ssinfer import StateSpaceInference, GaussianInference
+from inference.ssinfer import GaussianInference
 from models.ssmodel import StateSpaceModel
-from transforms.quad import Unscented, UnscentedTrunc
+from mtran import Unscented, UnscentedTrunc
 
 
 class UnscentedKalman(GaussianInference):
@@ -36,7 +36,7 @@ def main():
     # ungm_filter_demo(UnscentedKalman, kappa=0.0)
     # from models.pendulum import pendulum_filter_demo
     # pendulum_filter_demo(UnscentedKalman)
-    from models.tracking import bot_filter_demo, reentry_filter_demo
+    from models.tracking import reentry_filter_demo
     reentry_filter_demo(UnscentedKalman)
     # from models.demodulation import frequency_demodulation_filter_demo
     # frequency_demodulation_filter_demo(UnscentedKalman)

@@ -1,6 +1,6 @@
-from inference.ssinfer import StateSpaceInference, GaussianInference
+from inference.ssinfer import GaussianInference
 from models.ssmodel import StateSpaceModel
-from transforms.quad import SphericalRadial, SphericalRadialTrunc
+from mtran import SphericalRadial, SphericalRadialTrunc
 
 
 class CubatureKalman(GaussianInference):

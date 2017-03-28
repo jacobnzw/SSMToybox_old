@@ -8,7 +8,7 @@ from utils import multivariate_t
 # This is because observation models do not always use all the state dimensions, e.g. radar only uses position
 # to produce range and bearing measurements, the remaining states (velocity, ...) remain unused. Therefore the moment
 # transform for the observation model should have different dimension. I think this approach should be followed by
-# all the sigma-point transforms. The question is how to compute I/O covariance? Perhaps using the lower-dimensional
+# all the sigma-point bq. The question is how to compute I/O covariance? Perhaps using the lower-dimensional
 # rule with sigma-points extended with zeros to match the state dimension.
 
 

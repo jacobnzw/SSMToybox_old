@@ -5,8 +5,8 @@ import numpy as np
 import scipy.linalg as la
 from scipy.optimize import minimize
 
-from .bqkernel import RBF, RQ, RBFStudent
-from .quad import SphericalRadial, Unscented, GaussHermite, FullySymmetricStudent
+from mtran import SphericalRadial, Unscented, GaussHermite, FullySymmetricStudent
+from .bqkern import RBF, RQ, RBFStudent
 
 
 # TODO: documentation
@@ -15,7 +15,7 @@ from .quad import SphericalRadial, Unscented, GaussHermite, FullySymmetricStuden
 class Model(object, metaclass=ABCMeta):
     """
     A parent class for all models of the integrated function in the BQ quadrature context. It is intended to be used
-    by the subclasses of the `BQTransform` (i.e. Gaussian process and t-process quadrature moment transforms). The
+    by the subclasses of the `BQTransform` (i.e. Gaussian process and t-process quadrature moment bq). The
     Model class ties together the kernel and the point-set used by the underlying quadrature rule. In modelling
     terms, the Model is composed of a kernel and point-set, that is, `Model` *has-a* `Kernel` and `points`.
 

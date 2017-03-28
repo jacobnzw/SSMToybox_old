@@ -1,18 +1,16 @@
 import numpy as np
-from scipy.io import loadmat, savemat
-# from fusion_paper.figprint import *
 from numpy import newaxis as na
-from transforms.taylor import Taylor1stOrder
-from transforms.quad import FullySymmetricStudent
-from models.ssmodel import StateSpaceModel, StudentStateSpaceModel
-from inference.tpquad import TPQKalman, TPQStudent, TPQMOStudent
-from inference.gpquad import GPQKalman, GPQ, GPQMOKalman
+from scipy.io import loadmat, savemat
+
+from inference.gpquad import GPQ
 from inference.ssinfer import StudentInference
+from inference.tpquad import TPQStudent
 from inference.unscented import UnscentedKalman
-from inference.cubature import CubatureKalman
-from transforms.bqkernel import RBFStudent
-from transforms.bayesquad import BQTransform
+from models.ssmodel import StateSpaceModel, StudentStateSpaceModel
+from mtran import FullySymmetricStudent, Taylor1stOrder
 from system.datagen import System
+from bq.bqmtran import BQTransform
+from bq.bqkern import RBFStudent
 from utils import log_cred_ratio, mse_matrix, bigauss_mixture, multivariate_t
 
 
@@ -32,7 +30,7 @@ class GPQStudent(StudentInference):
 
     def __init__(self, ssm, kern_par_dyn, kern_par_obs, point_hyp=None, dof=4.0, fixed_dof=True):
         """
-        Student filter with Gaussian Process quadrature moment transforms using fully-symmetric sigma-point set.
+        Student filter with Gaussian Process quadrature moment bq using fully-symmetric sigma-point set.
 
         Parameters
         ----------
@@ -69,7 +67,7 @@ class GPQStudent(StudentInference):
         point_hyp_dyn.update({'dof': q_dof})
         point_hyp_obs.update({'dof': r_dof})
 
-        # init moment transforms
+        # init moment bq
         t_dyn = GPQ(nq, kern_par_dyn, 'rbf-student', 'fs', point_hyp_dyn)
         t_obs = GPQ(nr, kern_par_obs, 'rbf-student', 'fs', point_hyp_obs)
         super(GPQStudent, self).__init__(ssm, t_dyn, t_obs, dof, fixed_dof)
@@ -88,7 +86,7 @@ class FSQStudent(StudentInference):
         # degrees of freedom for SSM noises
         q_dof, r_dof = ssm.get_pars('q_dof', 'r_dof')
 
-        # init moment transforms
+        # init moment bq
         t_dyn = FullySymmetricStudent(nq, degree, kappa, q_dof)
         t_obs = FullySymmetricStudent(nr, degree, kappa, r_dof)
         super(FSQStudent, self).__init__(ssm, t_dyn, t_obs, dof, fixed_dof)

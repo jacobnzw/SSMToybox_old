@@ -1,6 +1,6 @@
-from inference.ssinfer import StateSpaceInference, GaussianInference
+from inference.ssinfer import GaussianInference
 from models.ssmodel import StateSpaceModel
-from transforms.taylor import Taylor1stOrder, TaylorGPQD
+from mtran import Taylor1stOrder, TaylorGPQD
 
 
 class ExtendedKalman(GaussianInference):

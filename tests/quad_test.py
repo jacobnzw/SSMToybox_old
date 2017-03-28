@@ -1,12 +1,9 @@
 from unittest import TestCase
 
-import matplotlib.pyplot as plt
-import scipy as sp
 import numpy as np
-import numpy.linalg as la
-from numpy import newaxis as na
-from transforms.quad import MonteCarlo, SphericalRadialTrunc, FullySymmetricStudent
+
 from models.ungm import UNGM
+from mtran import MonteCarlo, SphericalRadialTrunc, FullySymmetricStudent
 
 
 def sum_of_squares(x, pars, dx=False):

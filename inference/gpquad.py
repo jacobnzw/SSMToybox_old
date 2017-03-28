@@ -1,6 +1,6 @@
 from inference.ssinfer import StateSpaceInference, MarginalInference, GaussianInference
 from models.ssmodel import StateSpaceModel
-from transforms.bayesquad import GPQ, GPQMO
+from bq.bqmtran import GPQ, GPQMO
 import numpy as np
 import pandas as pd
 

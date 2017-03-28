@@ -19,7 +19,7 @@ import pandas as pd
 from .icinco_demo import rmse, nci, nll, bootstrap_var
 from inference import ExtendedKalman, ExtendedKalmanGPQD
 from ungm import UNGM
-from transforms import Unscented
+from bq import Unscented
 
 steps, mc = 500, 100  # time steps, mc simulations
 # initialize SSM and generate some data

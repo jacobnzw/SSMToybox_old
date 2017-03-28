@@ -2,7 +2,7 @@ import numpy as np
 
 from inference.ssinfer import StateSpaceInference, StudentInference, GaussianInference
 from models.ssmodel import StateSpaceModel
-from transforms.bayesquad import TPQ, TPQMO
+from bq.bqmtran import TPQ, TPQMO
 
 
 class TPQKalman(GaussianInference):

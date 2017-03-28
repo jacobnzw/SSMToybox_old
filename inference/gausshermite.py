@@ -1,6 +1,6 @@
-from inference.ssinfer import StateSpaceInference, GaussianInference
+from inference.ssinfer import GaussianInference
 from models.ssmodel import StateSpaceModel
-from transforms.quad import GaussHermite, GaussHermiteTrunc
+from mtran import GaussHermite, GaussHermiteTrunc
 
 
 class GaussHermiteKalman(GaussianInference):

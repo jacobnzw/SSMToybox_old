@@ -2,9 +2,9 @@ import numpy as np
 from numpy import newaxis as na
 # import matplotlib.pyplot as plt
 from fusion_paper.figprint import *
-from transforms.bqmodel import GaussianProcess, StudentTProcess
+from bq.bqmod import GaussianProcess, StudentTProcess
 from utils import multivariate_t
-from transforms.bqkernel import RBF
+from bq.bqkern import RBF
 
 dim = 1
 par_kernel = np.array([[0.8, 0.7]])
