@@ -8,7 +8,7 @@ from mtran import FullySymmetricStudent, Taylor1stOrder
 from ssinf import StudentInference
 from ssinf import UnscentedKalman, TPQStudent
 from ssmod import StateSpaceModel, StudentStateSpaceModel
-from system.datagen import System
+from sssim import System
 from utils import log_cred_ratio, mse_matrix, bigauss_mixture, multivariate_t
 
 
