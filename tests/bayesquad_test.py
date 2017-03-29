@@ -171,7 +171,6 @@ class GPQMOTest(TestCase):
         log_par, res_list = tf.model.optimize(np.log(par0), fy, x[..., 0], bounds=b, method='L-BFGS-B', options=opt)
 
         print(np.exp(log_par))
-        self.assertTrue(False)
 
     def test_optimize(self):
         steps = 350

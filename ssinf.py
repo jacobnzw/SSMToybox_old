@@ -534,7 +534,7 @@ class TPQMOStudent(StudentInference):
         super(TPQMOStudent, self).__init__(ssm, t_dyn, t_obs, dof, fixed_dof)
 
 
-class MarginalInference(StateSpaceInference):
+class MarginalInference(GaussianInference):
     """
     Kalman state-space inference with marginalized moment transform parameters. Standard Gaussian is used as a
     prior on log-parameters (the parameters are assumed strictly positive). Aims to be used mainly with Bayesian
@@ -766,10 +766,11 @@ class GPQMKalman(MarginalInference):
     GPQ Kalman filter with marginalized kernel parameters.
     """
 
-    def __init__(self, sys, kernel, points, par_mean=None, par_cov=None, point_hyp=None):
-        assert isinstance(sys, StateSpaceModel)
-        nq = sys.xD if sys.q_additive else sys.xD + sys.qD
-        nr = sys.xD if sys.r_additive else sys.xD + sys.rD
-        t_dyn = GPQ(nq, kernel, points, point_par=point_hyp)
-        t_obs = GPQ(nr, kernel, points, point_par=point_hyp)
-        super(GPQMKalman, self).__init__(sys, t_dyn, t_obs, par_mean, par_cov)
+    def __init__(self, ssm, kernel, points, par_mean=None, par_cov=None, point_hyp=None):
+        assert isinstance(ssm, StateSpaceModel)
+        nq = ssm.xD if ssm.q_additive else ssm.xD + ssm.qD
+        nr = ssm.xD if ssm.r_additive else ssm.xD + ssm.rD
+        kern_par = np.ones((1, nq+1))
+        t_dyn = GPQ(nq, kern_par, kernel, points, point_par=point_hyp)
+        t_obs = GPQ(nr, kern_par, kernel, points, point_par=point_hyp)
+        super(GPQMKalman, self).__init__(ssm, t_dyn, t_obs, par_mean, par_cov)

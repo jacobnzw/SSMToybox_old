@@ -6,7 +6,7 @@ import scipy.linalg as la
 from scipy.optimize import minimize
 
 from mtran import SphericalRadial, Unscented, GaussHermite, FullySymmetricStudent
-from .bqkern import RBF, RQ, RBFStudent
+from bqkern import RBF, RQ, RBFStudent
 
 
 # TODO: documentation

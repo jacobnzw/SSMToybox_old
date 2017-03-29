@@ -94,7 +94,7 @@ class BQTransform(MomentTransform, metaclass=ABCMeta):
         """
 
         # import must be after SigmaPointTransform
-        from .bqmod import GaussianProcess, StudentTProcess, GaussianProcessMO, StudentTProcessMO
+        from bqmod import GaussianProcess, StudentTProcess, GaussianProcessMO, StudentTProcessMO
         model = model.lower()
 
         # make sure kernel is supported
