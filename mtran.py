@@ -3,7 +3,6 @@ from abc import ABCMeta, abstractmethod
 import numpy as np
 import numpy.linalg as la
 from numpy import newaxis as na
-from numpy.linalg import cholesky
 from numpy.polynomial.hermite_e import hermegauss, hermeval
 from scipy.special import factorial
 from sklearn.utils.extmath import cartesian
@@ -117,7 +116,7 @@ class SigmaPointTransform(MomentTransform):
     def apply(self, f, mean, cov, fcn_pars, tf_pars=None):
         mean = mean[:, na]
         # form sigma-points from unit sigma-points
-        x = mean + cholesky(cov).dot(self.unit_sp)
+        x = mean + la.cholesky(cov).dot(self.unit_sp)
         # push sigma-points through non-linearity
         fx = np.apply_along_axis(f, 0, x, fcn_pars)
         # output mean
@@ -176,6 +175,29 @@ class Unscented(SigmaPointTransform):
         wm[0] = lam / (dim + lam)
         wc[0] = wm[0] + (1 - alpha ** 2 + beta)
         return wm, wc
+
+
+class GaussHermite(SigmaPointTransform):
+    def __init__(self, dim, degree=3):
+        self.degree = degree
+        self.wm = self.weights(dim, degree)
+        self.Wc = np.diag(self.wm)
+        self.unit_sp = self.unit_sigma_points(dim, degree)
+
+    @staticmethod
+    def weights(dim, degree=3):
+        # 1D sigma-points (x) and weights (w)
+        x, w = hermegauss(degree)
+        # hermegauss() provides weights that cause posdef errors
+        w = factorial(degree) / (degree ** 2 * hermeval(x, [0] * (degree - 1) + [1]) ** 2)
+        return np.prod(cartesian([w] * dim), axis=1)
+
+    @staticmethod
+    def unit_sigma_points(dim, degree=3):
+        # 1D sigma-points (x) and weights (w)
+        x, w = hermegauss(degree)
+        # nD sigma-points by cartesian product
+        return cartesian([x] * dim).T  # column/sigma-point
 
 
 class FullySymmetricStudent(SigmaPointTransform):
@@ -393,8 +415,8 @@ class SigmaPointTruncTransform(SigmaPointTransform):
         cov_eff = cov[:self.dim_eff, :self.dim_eff]
 
         # form sigma-points from unit sigma-points
-        x_eff = mean_eff + cholesky(cov_eff).dot(self.unit_sp_eff)
-        x = mean + cholesky(cov).dot(self.unit_sp)
+        x_eff = mean_eff + la.cholesky(cov_eff).dot(self.unit_sp_eff)
+        x = mean + la.cholesky(cov).dot(self.unit_sp)
 
         # push sigma-points through non-linearity
         fx_eff = np.apply_along_axis(f, 0, x_eff, fcn_pars)
@@ -409,29 +431,6 @@ class SigmaPointTruncTransform(SigmaPointTransform):
         # input-output covariance
         cov_fx = dfx_eff.dot(self.Wcc).dot((x - mean).T)
         return mean_f, cov_f, cov_fx
-
-
-class GaussHermite(SigmaPointTransform):
-    def __init__(self, dim, degree=3):
-        self.degree = degree
-        self.wm = self.weights(dim, degree)
-        self.Wc = np.diag(self.wm)
-        self.unit_sp = self.unit_sigma_points(dim, degree)
-
-    @staticmethod
-    def weights(dim, degree=3):
-        # 1D sigma-points (x) and weights (w)
-        x, w = hermegauss(degree)
-        # hermegauss() provides weights that cause posdef errors
-        w = factorial(degree) / (degree ** 2 * hermeval(x, [0] * (degree - 1) + [1]) ** 2)
-        return np.prod(cartesian([w] * dim), axis=1)
-
-    @staticmethod
-    def unit_sigma_points(dim, degree=3):
-        # 1D sigma-points (x) and weights (w)
-        x, w = hermegauss(degree)
-        # nD sigma-points by cartesian product
-        return cartesian([x] * dim).T  # column/sigma-point
 
 
 class SphericalRadialTrunc(SigmaPointTruncTransform):
