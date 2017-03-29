@@ -15,11 +15,11 @@ import time
 
 import numpy as np
 import pandas as pd
-
-from .icinco_demo import rmse, nci, nll, bootstrap_var
 from inference import ExtendedKalman, ExtendedKalmanGPQD
-from ungm import UNGM
+
 from bq import Unscented
+from ssmod import UNGM
+from .icinco_demo import rmse, nci, nll, bootstrap_var
 
 steps, mc = 500, 100  # time steps, mc simulations
 # initialize SSM and generate some data

@@ -9,7 +9,7 @@ from scipy.stats import multivariate_normal
 from bqmtran import GPQ, GPQMO, TPQ, TPQMO
 from mtran import MomentTransform, Taylor1stOrder, TaylorGPQD, SphericalRadial, Unscented, GaussHermite
 from mtran import SphericalRadialTrunc, UnscentedTrunc, GaussHermiteTrunc
-from ssmodel import StateSpaceModel, StudentStateSpaceModel
+from ssmod import StateSpaceModel, StudentStateSpaceModel
 
 
 class StateSpaceInference(metaclass=ABCMeta):

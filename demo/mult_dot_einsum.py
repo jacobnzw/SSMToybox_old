@@ -4,9 +4,9 @@ import numpy as np
 import numpy.linalg as la
 from scipy.linalg import cho_factor, cho_solve
 
-from models.tracking import ReentryRadar
-from mtran import MonteCarlo
 from bq.bqmtran import GPQ
+from mtran import MonteCarlo
+from ssmod import ReentryRadar
 
 
 def sym(a):

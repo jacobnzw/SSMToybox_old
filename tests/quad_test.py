@@ -2,8 +2,8 @@ from unittest import TestCase
 
 import numpy as np
 
-from models.ungm import UNGM
 from mtran import MonteCarlo, SphericalRadialTrunc, FullySymmetricStudent
+from ssmod import UNGM
 
 
 def sum_of_squares(x, pars, dx=False):

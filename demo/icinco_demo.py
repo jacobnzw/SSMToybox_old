@@ -1,14 +1,13 @@
+import time
+
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+from inference import CubatureKalman, UnscentedKalman, GaussHermiteKalman, GPQuadKalman
 from numpy import newaxis as na
-from scipy.stats import multivariate_normal
-from scipy.linalg import cho_factor, cho_solve
-from numpy.linalg import cholesky
-from inference import ExtendedKalman, CubatureKalman, UnscentedKalman, GaussHermiteKalman, GPQuadKalman
-from bq import SphericalRadial, Unscented, GaussHermite, GPQuad
-from ungm import UNGM
-import matplotlib.pyplot as plt
-import time
+
+from bq import SphericalRadial, Unscented, GaussHermite
+from ssmod import UNGM
 
 
 def rmse(x, m):
