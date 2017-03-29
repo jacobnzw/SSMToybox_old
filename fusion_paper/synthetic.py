@@ -2,15 +2,13 @@ import numpy as np
 from numpy import newaxis as na
 from scipy.io import loadmat, savemat
 
-from inference.gpquad import GPQ
-from inference.ssinfer import StudentInference
-from inference.tpquad import TPQStudent
-from inference.unscented import UnscentedKalman
+from bq.bqkern import RBFStudent
+from bq.bqmtran import BQTransform, GPQ
 from models.ssmodel import StateSpaceModel, StudentStateSpaceModel
 from mtran import FullySymmetricStudent, Taylor1stOrder
+from ssinf import StudentInference
+from ssinf import UnscentedKalman, TPQStudent
 from system.datagen import System
-from bq.bqmtran import BQTransform
-from bq.bqkern import RBFStudent
 from utils import log_cred_ratio, mse_matrix, bigauss_mixture, multivariate_t
 
 

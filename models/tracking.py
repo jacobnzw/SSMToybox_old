@@ -2,8 +2,8 @@ import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
 import numpy as np
 
-from inference.ssinfer import StateSpaceInference
 from models.ssmodel import GaussianStateSpaceModel
+from ssinf import StateSpaceInference
 
 
 class CoordinatedTurnBOT(GaussianStateSpaceModel):

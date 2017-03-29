@@ -6,8 +6,10 @@ from numpy import newaxis as na
 from scipy.linalg import cho_factor, cho_solve, block_diag
 from scipy.stats import multivariate_normal
 
-from models.ssmodel import StateSpaceModel, StudentStateSpaceModel
-from mtran import MomentTransform
+from bqmtran import GPQ, GPQMO, TPQ, TPQMO
+from mtran import MomentTransform, Taylor1stOrder, TaylorGPQD, SphericalRadial, Unscented, GaussHermite
+from mtran import SphericalRadialTrunc, UnscentedTrunc, GaussHermiteTrunc
+from ssmodel import StateSpaceModel, StudentStateSpaceModel
 
 
 class StateSpaceInference(metaclass=ABCMeta):
@@ -169,6 +171,169 @@ class GaussianInference(StateSpaceInference):
         self.x_cov_sm = self.x_cov_fi + gain.dot(self.x_cov_sm - self.x_cov_pr).dot(gain.T)
 
 
+class ExtendedKalman(GaussianInference):
+    """
+    Extended Kalman filter/smoother. For linear system functions this is a Kalman filter.
+    """
+
+    def __init__(self, sys):
+        assert isinstance(sys, StateSpaceModel)
+        nq = sys.xD if sys.q_additive else sys.xD + sys.qD
+        nr = sys.xD if sys.r_additive else sys.xD + sys.rD
+        tf = Taylor1stOrder(nq)
+        th = Taylor1stOrder(nr)
+        super(ExtendedKalman, self).__init__(sys, tf, th)
+
+
+class CubatureKalman(GaussianInference):
+    """
+    Cubature Kalman filter and smoother.
+    """
+
+    def __init__(self, sys):
+        assert isinstance(sys, StateSpaceModel)
+        nq = sys.xD if sys.q_additive else sys.xD + sys.qD
+        nr = sys.xD if sys.r_additive else sys.xD + sys.rD
+        tf = SphericalRadial(nq)
+        th = SphericalRadial(nr)
+        super(CubatureKalman, self).__init__(sys, tf, th)
+
+
+class UnscentedKalman(GaussianInference):
+    """
+    Unscented Kalman filter and smoother.
+    """
+
+    def __init__(self, sys, kappa=None, alpha=1.0, beta=2.0):
+        assert isinstance(sys, StateSpaceModel)
+        nq = sys.xD if sys.q_additive else sys.xD + sys.qD
+        nr = sys.xD if sys.r_additive else sys.xD + sys.rD
+        tf = Unscented(nq, kappa=kappa, alpha=alpha, beta=beta)
+        th = Unscented(nr, kappa=kappa, alpha=alpha, beta=beta)
+        super(UnscentedKalman, self).__init__(sys, tf, th)
+
+
+class GaussHermiteKalman(GaussianInference):
+    """
+    Gauss-Hermite Kalman filter and smoother.
+    """
+
+    def __init__(self, sys, deg=3):
+        assert isinstance(sys, StateSpaceModel)
+        nq = sys.xD if sys.q_additive else sys.xD + sys.qD
+        nr = sys.xD if sys.r_additive else sys.xD + sys.rD
+        tf = GaussHermite(nq, degree=deg)
+        th = GaussHermite(nr, degree=deg)
+        super(GaussHermiteKalman, self).__init__(sys, tf, th)
+
+
+class ExtendedKalmanGPQD(GaussianInference):
+    """
+    Extended Kalman filter with Taylor GPQ+D moment transform.
+    """
+
+    def __init__(self, sys, alpha=1.0, el=1.0):
+        assert isinstance(sys, StateSpaceModel)
+        nq = sys.xD if sys.q_additive else sys.xD + sys.qD
+        nr = sys.xD if sys.r_additive else sys.xD + sys.rD
+        tf = TaylorGPQD(nq, alpha, el)
+        th = TaylorGPQD(nr, alpha, el)
+        super(ExtendedKalmanGPQD, self).__init__(sys, tf, th)
+
+
+class CubatureTruncKalman(GaussianInference):
+    """
+    Truncated cubature Kalman filter and smoother. Aware of the effective dimension of the observation model.
+    """
+
+    def __init__(self, sys):
+        assert isinstance(sys, StateSpaceModel)
+        nq = sys.xD if sys.q_additive else sys.xD + sys.qD
+        nr = sys.xD if sys.r_additive else sys.xD + sys.rD
+        tf = SphericalRadial(nq)
+        th = SphericalRadialTrunc(nr, sys.rD)
+        super(CubatureTruncKalman, self).__init__(sys, tf, th)
+
+
+class UnscentedTruncKalman(GaussianInference):
+    """
+    Unscented Kalman filter and smoother. Aware of the effective dimension of the observation model.
+    """
+
+    def __init__(self, sys, kappa=None, alpha=1.0, beta=2.0):
+        assert isinstance(sys, StateSpaceModel)
+        nq = sys.xD if sys.q_additive else sys.xD + sys.qD
+        nr = sys.xD if sys.r_additive else sys.xD + sys.rD
+        tf = Unscented(nq, kappa=kappa, alpha=alpha, beta=beta)
+        th = UnscentedTrunc(nr, sys.rD, kappa=kappa, alpha=alpha, beta=beta)
+        super(UnscentedTruncKalman, self).__init__(sys, tf, th)
+
+
+class GaussHermiteTruncKalman(GaussianInference):
+    """
+    Truncated Gauss-Hermite Kalman filter and smoother. Aware of the effective dimension of the observation model.
+    """
+
+    def __init__(self, sys, deg=3):
+        assert isinstance(sys, StateSpaceModel)
+        nq = sys.xD if sys.q_additive else sys.xD + sys.qD
+        nr = sys.xD if sys.r_additive else sys.xD + sys.rD
+        tf = GaussHermite(nq, degree=deg)
+        th = GaussHermiteTrunc(nr, sys.rD, degree=deg)
+        super(GaussHermiteTruncKalman, self).__init__(sys, tf, th)
+
+
+class GPQKalman(GaussianInference):
+    """
+    GP quadrature filter and smoother.
+    """
+
+    def __init__(self, ssm, kern_par_dyn, kern_par_obs, kernel='rbf', points='ut', point_hyp=None):
+        assert isinstance(ssm, StateSpaceModel)
+        nq = ssm.xD if ssm.q_additive else ssm.xD + ssm.qD
+        nr = ssm.xD if ssm.r_additive else ssm.xD + ssm.rD
+        t_dyn = GPQ(nq, kern_par_dyn, kernel, points, point_hyp)
+        t_obs = GPQ(nr, kern_par_obs, kernel, points, point_hyp)
+        super(GPQKalman, self).__init__(ssm, t_dyn, t_obs)
+
+
+class TPQKalman(GaussianInference):
+    """
+    T-Process-quadrature filter and smoother for the Gaussian inference.
+    """
+
+    def __init__(self, ssm, kern_par_dyn, kern_par_obs, kernel='rbf', points='ut', point_hyp=None, nu=3.0):
+        assert isinstance(ssm, StateSpaceModel)
+        nq = ssm.xD if ssm.q_additive else ssm.xD + ssm.qD
+        nr = ssm.xD if ssm.r_additive else ssm.xD + ssm.rD
+        t_dyn = TPQ(nq, kern_par_dyn, kernel, points, point_hyp, nu)
+        t_obs = TPQ(nr, kern_par_obs, kernel, points, point_hyp, nu)
+        super(TPQKalman, self).__init__(ssm, t_dyn, t_obs)
+
+
+class GPQMOKalman(GaussianInference):
+
+    def __init__(self, ssm, ker_par_dyn, ker_par_obs, kernel='rbf', points='ut', point_par=None):
+        """
+        Nonlinear Kalman filter based on Gaussian process quadrature with multiple independent outputs.
+
+        Parameters
+        ----------
+        ssm : StateSpaceModel
+        ker_par_dyn : numpy.ndarray
+        ker_par_obs : numpy.ndarray
+        kernel : string
+        points : string
+        point_par : dict
+        """
+        assert isinstance(ssm, StateSpaceModel)
+        nq = ssm.xD if ssm.q_additive else ssm.xD + ssm.qD
+        nr = ssm.xD if ssm.r_additive else ssm.xD + ssm.rD
+        t_dyn = GPQMO(nq, ssm.xD, ker_par_dyn, kernel, points, point_par)
+        t_obs = GPQMO(nr, ssm.zD, ker_par_obs, kernel, points, point_par)
+        super(GPQMOKalman, self).__init__(ssm, t_dyn, t_obs)
+
+
 class StudentInference(StateSpaceInference):
     """
     Base class for state-space inference algorithms, which assume that the state and measurement variables are jointly
@@ -303,6 +468,70 @@ class StudentInference(StateSpaceInference):
     def _smoothing_update(self):
         # Student smoother has not been developed yet.
         pass
+
+
+class TPQStudent(StudentInference):
+    """
+    T-process quadrature filter and smoother for the Student's t inference. Uses RQ kernel and fully-symmetric
+    point-sets by default. RQ kernel expectations w.r.t. Student's t-density are expressed as a simplified scale
+    mixture representation which facilitates analytical tractability.
+    """
+
+    def __init__(self, ssm, kern_par_dyn, kern_par_obs, point_par=None, dof=4.0, fixed_dof=True, dof_tp=4.0):
+        assert isinstance(ssm, StateSpaceModel)
+        nq = ssm.xD if ssm.q_additive else ssm.xD + ssm.qD
+        nr = ssm.xD if ssm.r_additive else ssm.xD + ssm.rD
+
+        # degrees of freedom for SSM noises
+        q_dof, r_dof = ssm.get_pars('q_dof', 'r_dof')
+
+        # add DOF of the noises to the sigma-point parameters
+        if point_par is None:
+            point_par = dict()
+        point_par_dyn = point_par
+        point_par_obs = point_par
+        point_par_dyn.update({'dof': q_dof})
+        point_par_obs.update({'dof': r_dof})
+        # TODO: finish fixing DOFs, DOF for TPQ and DOF for the filtered state.
+
+        t_dyn = TPQ(nq, kern_par_dyn, 'rbf-student', 'fs', point_par_dyn, nu=dof_tp)
+        t_obs = TPQ(nr, kern_par_obs, 'rbf-student', 'fs', point_par_obs, nu=dof_tp)
+        super(TPQStudent, self).__init__(ssm, t_dyn, t_obs, dof, fixed_dof)
+
+
+class TPQMOStudent(StudentInference):
+
+    def __init__(self, ssm, ker_par_dyn, ker_par_obs, point_par=None, dof=4.0, fixed_dof=True, dof_tp=4.0):
+        """
+        Nonlinear Kalman filter based on Student process quadrature with multiple independent outputs.
+
+        Parameters
+        ----------
+        ssm : StateSpaceModel
+        ker_par_dyn : numpy.ndarray
+        ker_par_obs : numpy.ndarray
+        kernel : string
+        points : string
+        point_par : dict
+        """
+        assert isinstance(ssm, StateSpaceModel)
+        nq = ssm.xD if ssm.q_additive else ssm.xD + ssm.qD
+        nr = ssm.xD if ssm.r_additive else ssm.xD + ssm.rD
+
+        # degrees of freedom for SSM noises
+        q_dof, r_dof = ssm.get_pars('q_dof', 'r_dof')
+
+        # add DOF of the noises to the sigma-point parameters
+        if point_par is None:
+            point_par = dict()
+        point_par_dyn = point_par
+        point_par_obs = point_par
+        point_par_dyn.update({'dof': q_dof})
+        point_par_obs.update({'dof': r_dof})
+
+        t_dyn = TPQMO(nq, ssm.xD, ker_par_dyn, 'rbf-student', 'fs', point_par_dyn, nu=dof_tp)
+        t_obs = TPQMO(nr, ssm.zD, ker_par_obs, 'rbf-student', 'fs', point_par_obs, nu=dof_tp)
+        super(TPQMOStudent, self).__init__(ssm, t_dyn, t_obs, dof, fixed_dof)
 
 
 class MarginalInference(StateSpaceInference):
@@ -530,3 +759,17 @@ class MarginalInference(StateSpaceInference):
 
         opt_res = minimize(self._param_neg_log_posterior, theta_0, (y, k), method='BFGS')
         self.param_mean, self.param_cov = opt_res.x, opt_res.hess_inv + self.param_jitter
+
+
+class GPQMKalman(MarginalInference):
+    """
+    GPQ Kalman filter with marginalized kernel parameters.
+    """
+
+    def __init__(self, sys, kernel, points, par_mean=None, par_cov=None, point_hyp=None):
+        assert isinstance(sys, StateSpaceModel)
+        nq = sys.xD if sys.q_additive else sys.xD + sys.qD
+        nr = sys.xD if sys.r_additive else sys.xD + sys.rD
+        t_dyn = GPQ(nq, kernel, points, point_par=point_hyp)
+        t_obs = GPQ(nr, kernel, points, point_par=point_hyp)
+        super(GPQMKalman, self).__init__(sys, t_dyn, t_obs, par_mean, par_cov)

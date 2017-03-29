@@ -1,7 +1,7 @@
-from inference.ssinfer import StateSpaceInference
-from models.ssmodel import GaussianStateSpaceModel
 import matplotlib.pyplot as plt
 import numpy as np
+
+from models.ssmodel import GaussianStateSpaceModel
 
 
 class VanDerPol(GaussianStateSpaceModel):

@@ -3,9 +3,9 @@ from unittest import TestCase
 import numpy as np
 import numpy.linalg as la
 
-from inference.gpquad import GPQMKalman
-from models.ungm import UNGM
 from models.pendulum import Pendulum
+from models.ungm import UNGM
+from ssinf import GPQMKalman
 
 
 class GPQMarginalizedTest(TestCase):

@@ -2,14 +2,9 @@ import unittest
 
 import numpy as np
 
-from inference.extended import ExtendedKalman
-from inference.unscented import UnscentedKalman
-from inference.cubature import CubatureKalman
-from inference.gausshermite import GaussHermiteKalman
-from inference.gpquad import GPQKalman
-from inference.tpquad import TPQKalman
 from models.pendulum import Pendulum
 from models.ungm import UNGM, UNGMnonadd
+from ssinf import ExtendedKalman, CubatureKalman, UnscentedKalman, GaussHermiteKalman, GPQKalman, TPQKalman
 
 
 def default_bq_hypers(sys):
