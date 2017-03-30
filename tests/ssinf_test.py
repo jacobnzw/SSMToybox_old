@@ -2,11 +2,110 @@ from unittest import TestCase
 
 import numpy as np
 import numpy.linalg as la
+from numpy import linalg as la
 
-from bq.bqmtran import GPQ, GPQMO
-from ssmod import Pendulum, UNGM, CoordinatedTurnBOT, ReentryRadar
+from bqmtran import GPQ, GPQMO
+from mtran import SphericalRadialTrunc, MonteCarlo, FullySymmetricStudent
+from ssinf import GPQMKalman
+from ssmod import Pendulum, UNGM, ReentryRadar, CoordinatedTurnBOT
 
-np.set_printoptions(precision=4)
+
+def sum_of_squares(x, pars, dx=False):
+    """Sum of squares test function.
+
+    If x is Gaussian random variable than x.T.dot(x) is chi-squared distributed with mean d and variance 2d,
+    where d is the dimension of x.
+    """
+    if not dx:
+        return np.atleast_1d(x.T.dot(x))
+    else:
+        return np.atleast_1d(2 * x)
+
+
+def cartesian2polar(x, pars, dx=False):
+    return np.array([np.sqrt(x[0] ** 2 + x[1] ** 2), np.arctan2(x[1], x[0])])
+
+
+class SigmaPointTruncTest(TestCase):
+    def test_apply(self):
+        d, d_eff = 5, 2
+        t = SphericalRadialTrunc(d, d_eff)
+        f = cartesian2polar
+        mean, cov = np.zeros(d), np.eye(d)
+        t.apply(f, mean, cov, None)
+
+
+class MonteCarloTest(TestCase):
+    def test_crash(self):
+        d = 1
+        tmc = MonteCarlo(d, n=1e4)
+        f = UNGM().dyn_eval
+        mean = np.zeros(d)
+        cov = np.eye(d)
+        # does it crash ?
+        tmc.apply(f, mean, cov, np.atleast_1d(1.0))
+
+    def test_increasing_samples(self):
+        d = 1
+        tmc = (
+            MonteCarlo(d, n=1e1),
+            MonteCarlo(d, n=1e2),
+            MonteCarlo(d, n=1e3),
+            MonteCarlo(d, n=1e4),
+            MonteCarlo(d, n=1e5),
+        )
+        f = sum_of_squares  # UNGM().dyn_eval
+        mean = np.zeros(d)
+        cov = np.eye(d)
+        # does it crash ?
+        for t in tmc:
+            print(t.apply(f, mean, cov, np.atleast_1d(1.0)))
+
+
+class FullySymmetricStudentTest(TestCase):
+
+    def test_symmetric_set(self):
+
+        # 1D points
+        dim = 1
+        sp = FullySymmetricStudent.symmetric_set(dim, [])
+        self.assertEqual(sp.ndim, 2)
+        self.assertEqual(sp.shape, (dim, 1))
+        sp = FullySymmetricStudent.symmetric_set(dim, [1])
+        self.assertEqual(sp.shape, (dim, 2*dim))
+        sp = FullySymmetricStudent.symmetric_set(dim, [1, 1])
+        self.assertEqual(sp.shape, (dim, 2*dim*(dim-1)))
+
+        # 2D points
+        dim = 2
+        sp = FullySymmetricStudent.symmetric_set(dim, [])
+        self.assertEqual(sp.shape, (dim, 1))
+        sp = FullySymmetricStudent.symmetric_set(dim, [1])
+        self.assertEqual(sp.shape, (dim, 2*dim))
+        sp = FullySymmetricStudent.symmetric_set(dim, [1, 1])
+        self.assertEqual(sp.shape, (dim, 2 * dim * (dim - 1)))
+
+        # 3D points
+        dim = 3
+        sp = FullySymmetricStudent.symmetric_set(dim, [1, 1])
+        self.assertEqual(sp.shape, (dim, 2 * dim * (dim - 1)))
+
+    def test_crash(self):
+        dim = 1
+        mt = FullySymmetricStudent(dim, degree=3)
+        f = UNGM().dyn_eval
+        mean = np.zeros(dim)
+        cov = np.eye(dim)
+        # does it crash ?
+        mt.apply(f, mean, cov, np.atleast_1d(1.0))
+
+        dim = 2
+        mt = FullySymmetricStudent(dim, degree=5)
+        f = sum_of_squares
+        mean = np.zeros(dim)
+        cov = np.eye(dim)
+        # does it crash ?
+        mt.apply(f, mean, cov, np.atleast_1d(1.0))
 
 
 class GPQuadTest(TestCase):
@@ -149,47 +248,45 @@ class GPQMOTest(TestCase):
         self.assertTrue(np.array_equal(cov_so, cov_mo))
         self.assertTrue(np.array_equal(ccov_so, ccov_mo))
 
-    def test_optimize_1D(self):
-        # test on simple 1D example, plot the fit
-        steps = 100
+
+class GPQMarginalizedTest(TestCase):
+    def test_init(self):
         ssm = UNGM()
-        x, y = ssm.simulate(steps)
+        alg = GPQMKalman(ssm, 'rbf', 'sr')
 
-        f = ssm.meas_eval
-        dim_in, dim_out = ssm.xD, ssm.xD
+    def test_time_update(self):
+        ssm = UNGM()
+        alg = GPQMKalman(ssm, 'rbf', 'sr')
+        alg._time_update(1)
+        par_dyn, par_obs = np.array([1, 1]), np.array([1, 1])
+        alg._time_update(1, par_dyn, par_obs)
 
-        par0 = 1 + np.random.rand(dim_out, dim_in + 1)
-        tf = GPQMO(dim_in, dim_out, par0)
+    def test_laplace_approx(self):
+        ssm = UNGM()
+        alg = GPQMKalman(ssm, 'rbf', 'sr')
+        # Random measurement
+        y = np.sqrt(10)*np.random.randn(1)
+        alg._param_posterior_moments(y, 10)
+        # test positive definiteness
+        try:
+            la.cholesky(alg.param_cov)
+        except la.LinAlgError:
+            self.fail("Output covariance not positive definite.")
 
-        # use sampled system state trajectory to create training data
-        fy = np.zeros((dim_out, steps))
-        for k in range(steps):
-            fy[:, k] = f(x[:, k, 0], np.atleast_1d(k))
+    def test_measurement_update(self):
+        ssm = UNGM()
+        ssm_state, ssm_observations = ssm.simulate(5)
+        alg = GPQMKalman(ssm, 'rbf', 'sr')
+        alg._measurement_update(ssm_observations[:, 0, 0], 1)
 
-        b = [np.log((0.1, 1.0001))] + dim_in * [(None, None)]
-        opt = {'xtol': 1e-2, 'maxiter': 100}
-        log_par, res_list = tf.model.optimize(np.log(par0), fy, x[..., 0], bounds=b, method='L-BFGS-B', options=opt)
+    def test_filtering_ungm(self):
+        ssm = UNGM()
+        ssm_state, ssm_observations = ssm.simulate(100)
+        alg = GPQMKalman(ssm, 'rbf', 'sr')
+        alg.forward_pass(ssm_observations[..., 0])
 
-        print(np.exp(log_par))
-
-    def test_optimize(self):
-        steps = 350
-        ssm = CoordinatedTurnBOT(dt=1.0)
-        x, y = ssm.simulate(steps)
-
-        f = ssm.dyn_eval
-        dim_in, dim_out = ssm.xD, ssm.xD
-
-        # par0 = np.hstack((np.ones((dim_out, 1)), 5*np.ones((dim_out, dim_in+1))))
-        par0 = 10*np.ones((dim_out, dim_in+1))
-        tf = GPQMO(dim_in, dim_out, par0)
-
-        # use sampled system state trajectory to create training data
-        fy = np.zeros((dim_out, steps))
-        for k in range(steps):
-            fy[:, k] = f(x[:, k, 0], None)
-
-        opt = {'maxiter': 100}
-        log_par, res_list = tf.model.optimize(np.log(par0), fy, x[..., 0], method='BFGS', options=opt)
-
-        print(np.exp(log_par))
+    def test_filtering_pendulum(self):
+        ssm = Pendulum()
+        ssm_state, ssm_observations = ssm.simulate(100)
+        alg = GPQMKalman(ssm, 'rbf', 'sr')
+        alg.forward_pass(ssm_observations[..., 0])

@@ -4,12 +4,11 @@ import numpy as np
 import scipy.linalg as la
 from numpy import newaxis as na
 
-from bq.bqmod import GaussianProcess, StudentTProcess
+from bq.bqmod import GaussianProcess, StudentTProcess, GaussianProcessMO
+from ssmod import UNGM, CoordinatedTurnBOT
 
 # fcn = lambda x: np.sin((x + 1) ** -1)
 fcn = lambda x: 0.5 * x + 25 * x / (1 + x ** 2)
-
-
 # fcn = lambda x: np.sin(x)
 # fcn = lambda x: 0.05*x ** 2
 # fcn = lambda x: x
@@ -181,23 +180,23 @@ class GPModelTest(TestCase):
         # plot after optimization
         model.plot_model(xtest, y, fcn_true=f, par=hyp_ml2)
 
-        # TODO: test fitting of multioutput GPs, GPy supports this in GPRegression
         # plot NLML surface
-        # x = np.log(np.mgrid[1:10:0.5, 0.5:20:0.5])
-        # m, n = x.shape[1:]
-        # z = np.zeros(x.shape[1:])
-        # for i in range(m):
-        #     for j in range(n):
-        #         z[i, j], grad = model.neg_log_marginal_likelihood(x[:, i, j], y.T)
-        #
-        # import matplotlib.pyplot as plt
-        # from mpl_toolkits.mplot3d import Axes3D
-        # fig = plt.figure()
-        # ax = fig.add_subplot(111, projection='3d')
-        # ax.plot_surface((x[0, ...]), (x[1, ...]), z, linewidth=0.5, alpha=0.5, rstride=2, cstride=2)
-        # ax.set_xlabel('alpha')
-        # ax.set_ylabel('el')
-        # plt.show()
+        log_par = np.log(np.mgrid[1:10:0.5, 0.5:20:0.5])
+        m, n = log_par.shape[1:]
+        z = np.zeros(log_par.shape[1:])
+        jitter = np.eye(model.num_pts)
+        for i in range(m):
+            for j in range(n):
+                z[i, j], grad = model.neg_log_marginal_likelihood(log_par[:, i, j], y.T, model.points, jitter)
+
+        import matplotlib.pyplot as plt
+        from mpl_toolkits.mplot3d import Axes3D
+        fig = plt.figure()
+        ax = fig.add_subplot(111, projection='3d')
+        ax.plot_surface((log_par[0, ...]), (log_par[1, ...]), z, linewidth=0.5, alpha=0.5, rstride=2, cstride=2)
+        ax.set_xlabel('$\log(\\alpha)$')
+        ax.set_ylabel('$\log(\ell)$')
+        plt.show()
 
     def test_hypers_optim_multioutput(self):
         from ssmod import CoordinatedTurnRadar
@@ -346,3 +345,51 @@ class TPModelTest(TestCase):
         print(res_ml2)
         np.set_printoptions(precision=4)
         print('ML-II({:.4f}) @ alpha: {:.4f}, el: {}'.format(res_ml2.fun, hyp_ml2[0], hyp_ml2[1:]))
+
+
+class GPMOModelTest(TestCase):
+
+    def test_optimize_1D(self):
+        # test on simple 1D example, plot the fit
+        steps = 100
+        ssm = UNGM()
+        x, y = ssm.simulate(steps)
+
+        f = ssm.meas_eval
+        dim_in, dim_out = ssm.xD, ssm.xD
+
+        par0 = 1 + np.random.rand(dim_out, dim_in + 1)
+        model = GaussianProcessMO(dim_in, dim_out, par0, 'rbf', 'ut')
+
+        # use sampled system state trajectory to create training data
+        fy = np.zeros((dim_out, steps))
+        for k in range(steps):
+            fy[:, k] = f(x[:, k, 0], np.atleast_1d(k))
+
+        b = [np.log((0.1, 1.0001))] + dim_in * [(None, None)]
+        opt = {'xtol': 1e-2, 'maxiter': 100}
+        log_par, res_list = model.optimize(np.log(par0), fy, x[..., 0], bounds=b, method='L-BFGS-B', options=opt)
+
+        print(np.exp(log_par))
+
+    def test_optimize(self):
+        steps = 350
+        ssm = CoordinatedTurnBOT(dt=1.0)
+        x, y = ssm.simulate(steps)
+
+        f = ssm.dyn_eval
+        dim_in, dim_out = ssm.xD, ssm.xD
+
+        # par0 = np.hstack((np.ones((dim_out, 1)), 5*np.ones((dim_out, dim_in+1))))
+        par0 = 10*np.ones((dim_out, dim_in+1))
+        model = GaussianProcessMO(dim_in, dim_out, par0, 'rbf', 'ut')
+
+        # use sampled system state trajectory to create training data
+        fy = np.zeros((dim_out, steps))
+        for k in range(steps):
+            fy[:, k] = f(x[:, k, 0], None)
+
+        opt = {'maxiter': 100}
+        log_par, res_list = model.optimize(np.log(par0), fy, x[..., 0], method='BFGS', options=opt)
+
+        print(np.exp(log_par))
