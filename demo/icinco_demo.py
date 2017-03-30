@@ -1,12 +1,10 @@
 import time
-
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from inference import CubatureKalman, UnscentedKalman, GaussHermiteKalman, GPQuadKalman
 from numpy import newaxis as na
 
-from bq import SphericalRadial, Unscented, GaussHermite
+from ssinf import CubatureKalman, UnscentedKalman, GaussHermiteKalman, GPQKalman
 from ssmod import UNGM
 
 
@@ -92,6 +90,13 @@ def tables():
     steps, mc = 500, 100
     ssm = UNGM()  # initialize UNGM model
     x, z = ssm.simulate(steps, mc_sims=mc)  # generate some data
+
+    # kernel parameters
+    par_sr = np.array([[1.0] + ssm.xD*[0.3]])
+    par_ut = np.array([[1.0] + ssm.xD*[3.0]])
+    par_gh5 = np.array([[1.0] + ssm.xD*[0.3]])
+    par_gh7 = np.array([[1.0] + ssm.xD*[0.1]])
+
     # initialize filters/smoothers
     algorithms = (
         # ExtendedKalman(ssm),
@@ -102,41 +107,13 @@ def tables():
         GaussHermiteKalman(ssm, deg=10),
         GaussHermiteKalman(ssm, deg=15),
         GaussHermiteKalman(ssm, deg=20),
-        GPQuadKalman(ssm,
-                     usp_dyn=SphericalRadial.unit_sigma_points(ssm.xD),
-                     usp_meas=SphericalRadial.unit_sigma_points(ssm.xD),
-                     hyp_dyn={'sig_var': 1.0, 'lengthscale': 0.3 * np.ones(ssm.xD, ), 'noise_var': 1e-8},
-                     hyp_meas={'sig_var': 1.0, 'lengthscale': 0.3 * np.ones(ssm.xD, ), 'noise_var': 1e-8}),
-        GPQuadKalman(ssm,
-                     usp_dyn=Unscented.unit_sigma_points(ssm.xD, kappa=0.0),
-                     usp_meas=Unscented.unit_sigma_points(ssm.xD, kappa=0.0),
-                     hyp_dyn={'sig_var': 1.0, 'lengthscale': 3.0 * np.ones(ssm.xD, ), 'noise_var': 1e-8},
-                     hyp_meas={'sig_var': 1.0, 'lengthscale': 3.0 * np.ones(ssm.xD, ), 'noise_var': 1e-8}),
-        GPQuadKalman(ssm,
-                     usp_dyn=GaussHermite.unit_sigma_points(ssm.xD, degree=5),
-                     usp_meas=GaussHermite.unit_sigma_points(ssm.xD, degree=5),
-                     hyp_dyn={'sig_var': 1.0, 'lengthscale': 0.3 * np.ones(ssm.xD, ), 'noise_var': 1e-8},
-                     hyp_meas={'sig_var': 1.0, 'lengthscale': 0.3 * np.ones(ssm.xD, ), 'noise_var': 1e-8}),
-        GPQuadKalman(ssm,
-                     usp_dyn=GaussHermite.unit_sigma_points(ssm.xD, degree=7),
-                     usp_meas=GaussHermite.unit_sigma_points(ssm.xD, degree=7),
-                     hyp_dyn={'sig_var': 1.0, 'lengthscale': 0.1 * np.ones(ssm.xD, ), 'noise_var': 1e-8},
-                     hyp_meas={'sig_var': 1.0, 'lengthscale': 0.1 * np.ones(ssm.xD, ), 'noise_var': 1e-8}),
-        GPQuadKalman(ssm,
-                     usp_dyn=GaussHermite.unit_sigma_points(ssm.xD, degree=10),
-                     usp_meas=GaussHermite.unit_sigma_points(ssm.xD, degree=10),
-                     hyp_dyn={'sig_var': 1.0, 'lengthscale': 0.1 * np.ones(ssm.xD, ), 'noise_var': 1e-8},
-                     hyp_meas={'sig_var': 1.0, 'lengthscale': 0.1 * np.ones(ssm.xD, ), 'noise_var': 1e-8}),
-        GPQuadKalman(ssm,
-                     usp_dyn=GaussHermite.unit_sigma_points(ssm.xD, degree=15),
-                     usp_meas=GaussHermite.unit_sigma_points(ssm.xD, degree=15),
-                     hyp_dyn={'sig_var': 1.0, 'lengthscale': 0.1 * np.ones(ssm.xD, ), 'noise_var': 1e-8},
-                     hyp_meas={'sig_var': 1.0, 'lengthscale': 0.1 * np.ones(ssm.xD, ), 'noise_var': 1e-8}),
-        GPQuadKalman(ssm,
-                     usp_dyn=GaussHermite.unit_sigma_points(ssm.xD, degree=20),
-                     usp_meas=GaussHermite.unit_sigma_points(ssm.xD, degree=20),
-                     hyp_dyn={'sig_var': 1.0, 'lengthscale': 0.1 * np.ones(ssm.xD, ), 'noise_var': 1e-8},
-                     hyp_meas={'sig_var': 1.0, 'lengthscale': 0.1 * np.ones(ssm.xD, ), 'noise_var': 1e-8})
+        GPQKalman(ssm, par_sr, par_sr, points='sr'),
+        GPQKalman(ssm, par_ut, par_ut, points='ut', point_hyp={'kappa': 0.0}),
+        GPQKalman(ssm, par_gh5, par_gh5, points='gh', point_hyp={'degree': 5}),
+        GPQKalman(ssm, par_gh7, par_gh7, points='gh', point_hyp={'degree': 7}),
+        GPQKalman(ssm, par_gh7, par_gh7, points='gh', point_hyp={'degree': 10}),
+        GPQKalman(ssm, par_gh7, par_gh7, points='gh', point_hyp={'degree': 15}),
+        GPQKalman(ssm, par_gh7, par_gh7, points='gh', point_hyp={'degree': 20}),
     )
     num_algs = len(algorithms)
 
@@ -150,7 +127,7 @@ def tables():
         print('{}'.format(alg.__class__.__name__))  # print filter/smoother name
         for sim in range(mc):
             mean_f[..., sim, a], cov_f[..., sim, a] = alg.forward_pass(z[..., sim])
-            mean_s[..., sim, a], cov_s[..., sim, a] = alg.backward_pass()
+            # mean_s[..., sim, a], cov_s[..., sim, a] = alg.backward_pass()
             alg.reset()
     print('Done in {0:.4f} [sec]'.format(time.time() - t0))
 
@@ -213,13 +190,13 @@ def hypers_demo(lscale=[1e-3, 3e-3, 1e-2, 3e-2, 1e-1, 3e-1, 1, 3, 1e1, 3e1]):
     ssm = UNGM()  # initialize UNGM model
     x, z = ssm.simulate(steps, mc_sims=mc)  # generate some data
     # lscale = [1e-3, 3e-3, 1e-2, 3e-2, 1e-1, 3e-1, 1, 3, 1e1, 3e1]  # , 1e2, 3e2]
-    sigmas_ut = Unscented.unit_sigma_points(ssm.xD, kappa=0.0)
     mean_f, cov_f = np.zeros((ssm.xD, steps, mc, len(lscale))), np.zeros((ssm.xD, ssm.xD, steps, mc, len(lscale)))
     for iel, el in enumerate(lscale):
-        # initialize BHKF with current lenghtscale
-        f = GPQuadKalman(ssm, usp_dyn=sigmas_ut, usp_meas=sigmas_ut,
-                         hyp_dyn={'sig_var': 1.0, 'lengthscale': el * np.ones(ssm.xD, ), 'noise_var': 1e-8},
-                         hyp_meas={'sig_var': 1.0, 'lengthscale': el * np.ones(ssm.xD, ), 'noise_var': 1e-8})
+
+        # initialize GPQKF (BHKF) with current lenghtscale
+        par = np.array([[1.0] + ssm.xD*[el]])
+        f = GPQKalman(ssm, par, par, points='ut', point_hyp={'kappa': 0.0})
+
         # filtering
         for s in range(mc):
             mean_f[..., s, iel], cov_f[..., s, iel] = f.forward_pass(z[..., s])
@@ -228,6 +205,7 @@ def hypers_demo(lscale=[1e-3, 3e-3, 1e-2, 3e-2, 1e-1, 3e-1, 1, 3, 1e1, 3e1]):
     rmseVsEl = rmse(x, mean_f).mean(axis=1)
     nciVsEl = nci(x, mean_f, cov_f).mean(axis=1)
     nllVsEl = nll(x, mean_f, cov_f).mean(axis=1)
+
     # plot influence of changing lengthscale on the RMSE and NCI and NLL filter performance
     plt.figure()
     plt.semilogx(lscale, rmseVsEl.squeeze(), color='k', ls='-', lw=2, marker='o', label='RMSE')
