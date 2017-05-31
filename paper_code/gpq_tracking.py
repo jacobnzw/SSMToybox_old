@@ -1,6 +1,6 @@
 from utils import *
 import numpy.linalg as la
-from paper_code.journal_figure import *
+# from paper_code.journal_figure import *
 import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
 from inference.gpquad import GPQKalman
@@ -136,19 +136,20 @@ def reentry_simple_gpq_demo(dur=30, tau=0.1, mc=100):
         y[..., i] = sys.simulate_measurements(x[..., i], mc_per_step=1).squeeze()
 
     # GPQKF kernel parameters
-    hdyn = {'alpha': 0.5, 'el': [10, 10, 10]}
-    hobs = {'alpha': 0.5, 'el': [15, 20, 20]}
-    # hdyn = {'alpha': 1.0, 'el': [7, 7, 7]}
-    # hobs = {'alpha': 1.0, 'el': [7, 20, 20]}
+    hdyn_ut = {'alpha': 0.5, 'el': [10, 10, 10]}
+    hobs_ut = {'alpha': 0.5, 'el': [15, 20, 20]}
+    hdyn_cut = {'alpha': 5.0, 'el': [1e2, 3, 1e2]}
+    hobs_cut = {'alpha': 0.0, 'el': [3, 20, 20]}
 
     # Initialize model
     ssm = ReentryRadarSimpleModel(dt=tau)
 
     # Initialize filters
     alg = (
-        GPQKalman(ssm, 'rbf', 'ut', hdyn, hobs),
+        GPQKalman(ssm, 'rbf', 'ut', hdyn_ut, hobs_ut),
         # CubatureKalman(ssm),
         UnscentedKalman(ssm),
+        GPQKalman(ssm, 'rbf', 'cut', hdyn_cut, hobs_cut),
     )
 
     num_alg = len(alg)
@@ -232,32 +233,36 @@ def reentry_simple_gpq_demo(dur=30, tau=0.1, mc=100):
     # PLOTS: Performance Scores
     plt.figure()
     g = GridSpec(6, 3)
-
+    filt_labels = ['GPQ-UT', 'UKF', 'GPQ-CUT']
     plt.subplot(g[:2, :2])
     plt.ylabel('RMSE')
-    plt.plot(time_ind[1:], pos_rmse_vs_time[1:, 0], label='GPQKF', color='g')
-    plt.plot(time_ind[1:], pos_rmse_vs_time[1:, 1], label='UKF', color='r')
+    plt.plot(time_ind[1:], pos_rmse_vs_time[1:, 0], label=filt_labels[0], color='g')
+    plt.plot(time_ind[1:], pos_rmse_vs_time[1:, 1], label=filt_labels[1], color='r')
+    plt.plot(time_ind[1:], pos_rmse_vs_time[1:, 2], label=filt_labels[2], color='b')
     plt.legend()
 
     plt.subplot(g[2:4, :2])
     plt.ylabel('RMSE')
-    plt.plot(time_ind[1:], vel_rmse_vs_time[1:, 0], label='GPQKF', color='g')
-    plt.plot(time_ind[1:], vel_rmse_vs_time[1:, 1], label='UKF', color='r')
+    plt.plot(time_ind[1:], vel_rmse_vs_time[1:, 0], label=filt_labels[0], color='g')
+    plt.plot(time_ind[1:], vel_rmse_vs_time[1:, 1], label=filt_labels[1], color='r')
+    plt.plot(time_ind[1:], vel_rmse_vs_time[1:, 2], label=filt_labels[2], color='b')
 
     plt.subplot(g[4:, :2])
     plt.ylabel('RMSE')
-    plt.plot(time_ind[1:], theta_rmse_vs_time[1:, 0], label='GPQKF', color='g')
-    plt.plot(time_ind[1:], theta_rmse_vs_time[1:, 1], label='UKF', color='r')
+    plt.xlabel('time step [k]')
+    plt.plot(time_ind[1:], theta_rmse_vs_time[1:, 0], label=filt_labels[0], color='g')
+    plt.plot(time_ind[1:], theta_rmse_vs_time[1:, 1], label=filt_labels[1], color='r')
+    plt.plot(time_ind[1:], theta_rmse_vs_time[1:, 2], label=filt_labels[2], color='b')
 
     # Box plots of time-averaged scores
     plt.subplot(g[:2, 2:])
-    plt.boxplot(pos_rmse.mean(axis=0), labels=['GPQKF', 'UKF'])
+    plt.boxplot(pos_rmse.mean(axis=0), labels=filt_labels)
 
     plt.subplot(g[2:4, 2:])
-    plt.boxplot(vel_rmse.mean(axis=0), labels=['GPQKF', 'UKF'])
+    plt.boxplot(vel_rmse.mean(axis=0), labels=filt_labels)
 
     plt.subplot(g[4:, 2:])
-    plt.boxplot(theta_rmse.mean(axis=0), labels=['GPQKF', 'UKF'])
+    plt.boxplot(theta_rmse.mean(axis=0), labels=filt_labels)
     plt.show()
 
     plt.figure()
@@ -265,30 +270,37 @@ def reentry_simple_gpq_demo(dur=30, tau=0.1, mc=100):
 
     plt.subplot(g[:2, :2])
     plt.ylabel(r'$\nu$')
-    plt.plot(time_ind, pos_inc_vs_time[:, 0], label='GPQKF', color='g')
-    plt.plot(time_ind, pos_inc_vs_time[:, 1], label='UKF', color='r')
+    plt.plot(time_ind, pos_inc_vs_time[:, 0], label=filt_labels[0], color='g')
+    plt.plot(time_ind, pos_inc_vs_time[:, 1], label=filt_labels[1], color='r')
+    plt.plot(time_ind, pos_inc_vs_time[:, 2], label=filt_labels[2], color='b')
 
     plt.subplot(g[2:4, :2])
     plt.ylabel(r'$\nu$')
-    plt.plot(time_ind, vel_inc_vs_time[:, 0], label='GPQKF', color='g')
-    plt.plot(time_ind, vel_inc_vs_time[:, 1], label='UKF', color='r')
+    plt.plot(time_ind, vel_inc_vs_time[:, 0], label=filt_labels[0], color='g')
+    plt.plot(time_ind, vel_inc_vs_time[:, 1], label=filt_labels[1], color='r')
+    plt.plot(time_ind, vel_inc_vs_time[:, 2], label=filt_labels[2], color='b')
 
     plt.subplot(g[4:, :2])
     plt.ylabel(r'$\nu$')
-    plt.plot(time_ind, theta_inc_vs_time[:, 0], label='GPQKF', color='g')
-    plt.plot(time_ind, theta_inc_vs_time[:, 1], label='UKF', color='r')
+    plt.xlabel('time step [k]')
+    plt.plot(time_ind, theta_inc_vs_time[:, 0], label=filt_labels[0], color='g')
+    plt.plot(time_ind, theta_inc_vs_time[:, 1], label=filt_labels[1], color='r')
+    plt.plot(time_ind, theta_inc_vs_time[:, 2], label=filt_labels[2], color='b')
 
     plt.subplot(g[:2, 2:])
-    plt.boxplot(pos_lcr.mean(axis=0), labels=['GPQKF', 'UKF'])
+    plt.boxplot(pos_lcr.mean(axis=0), labels=filt_labels)
 
     plt.subplot(g[2:4, 2:])
-    plt.boxplot(vel_lcr.mean(axis=0), labels=['GPQKF', 'UKF'])
+    plt.boxplot(vel_lcr.mean(axis=0), labels=filt_labels)
 
     plt.subplot(g[4:, 2:])
-    plt.boxplot(theta_lcr.mean(axis=0), labels=['GPQKF', 'UKF'])
+    plt.boxplot(theta_lcr.mean(axis=0), labels=filt_labels)
     plt.show()
 
     # TODO: pandas tables for printing into latex
+    np.set_printoptions(precision=4)
+    print('Dynamics CUT params: {}'.format(hdyn_cut))
+    print('Observation CUT params: {}'.format(hobs_cut))
     print('Average RMSE: {}'.format(np.sqrt(error2.sum(axis=0)).mean(axis=(0, 1))))
 
 
@@ -537,8 +549,9 @@ def reentry_simple_trajectory_plot(data_scores):
 if __name__ == '__main__':
     import pickle
     # # get simulation results
-    # print('Running simulations ...')
+    print('Running simulations ...')
     # data_dict = reentry_simple_data(mc=100)
+    reentry_simple_gpq_demo(mc=100)
     #
     # # dump simulated data for fast re-plotting
     # print('Pickling data ...')
@@ -547,12 +560,12 @@ if __name__ == '__main__':
     #     f.close()
 
     # load pickled data
-    print('Unpickling data ...')
-    with open('reentry_score_data.dat', 'rb') as f:
-        data_dict = pickle.load(f)
-        f.close()
+    # print('Unpickling data ...')
+    # with open('reentry_score_data.dat', 'rb') as f:
+    #     data_dict = pickle.load(f)
+    #     f.close()
 
     # calculate scores and generate publication ready figures
     # reentry_simple_plots(data_dict)
-    reentry_simple_trajectory_plot(data_dict)
+    # reentry_simple_trajectory_plot(data_dict)
     # reentry_simple_gpq_demo()

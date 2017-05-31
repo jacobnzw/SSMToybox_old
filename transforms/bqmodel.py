@@ -13,7 +13,7 @@ from .quad import SphericalRadial, Unscented, GaussHermite
 
 
 class Model(object, metaclass=ABCMeta):
-    _supported_points_ = ['sr', 'ut', 'gh']
+    _supported_points_ = ['sr', 'ut', 'gh', 'cut']
     _supported_kernels_ = ['rbf']
 
     def __init__(self, dim, kernel, points, kern_hyp=None, point_hyp=None):
@@ -129,6 +129,11 @@ class Model(object, metaclass=ABCMeta):
             return Unscented.unit_sigma_points(dim, **point_hyp)
         elif points == 'gh':
             return GaussHermite.unit_sigma_points(dim, **point_hyp)
+        elif points == 'cut':
+            from scipy.io import loadmat
+            data = loadmat('c:\\Users\\JPruher\\Documents\\temp\\CUTpoints-master\\CUT points- mat '
+                           'files\\gaussian_mat\\CUT\\cut4_3D_gaussian.mat')
+            return data['X'].T
 
     @staticmethod
     def get_kernel(dim, kernel, hypers):
