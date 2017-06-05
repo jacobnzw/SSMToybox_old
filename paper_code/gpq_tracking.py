@@ -551,7 +551,7 @@ if __name__ == '__main__':
     # # get simulation results
     print('Running simulations ...')
     # data_dict = reentry_simple_data(mc=100)
-    reentry_simple_gpq_demo(mc=100)
+    reentry_simple_gpq_demo(mc=50, dur=30)
     #
     # # dump simulated data for fast re-plotting
     # print('Pickling data ...')
