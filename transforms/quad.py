@@ -6,11 +6,31 @@ from scipy.special import factorial
 from sklearn.utils.extmath import cartesian
 
 from .mtform import MomentTransform, SigmaPointTransform, SigmaPointTruncTransform
-
+from scipy.io import loadmat
 
 # TODO: add higher-order fully symmetric rules from [McNamee, Stenger]
 # TODO: Monte Carlo transform discussed in [Gustafsson, 2012] might serve as baseline for all Gaussian filters
 #  Gaussian Particle filter [Djuric] appears to be different from MCT
+
+
+class ConjugateUnscented(SigmaPointTransform):
+
+    PATH = 'c:\\Users\\JPruher\\Documents\\temp\\CUTpoints-master\\CUT points- mat ' \
+           'files\\gaussian_mat\\CUT\\cut4_3D_gaussian.mat'
+
+    def __init__(self, dim, degree=3):
+        data = loadmat(self.PATH)
+        self.wm = data['w'].squeeze()
+        self.Wc = np.diag(self.wm)
+        self.unit_sp = data['X'].T
+
+    @staticmethod
+    def weights(dim, degree=3):
+        pass
+
+    @staticmethod
+    def unit_sigma_points(dim, degree=3):
+        pass
 
 
 class MonteCarlo(MomentTransform):

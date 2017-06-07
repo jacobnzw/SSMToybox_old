@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
 from inference.gpquad import GPQKalman
 from inference.unscented import UnscentedKalman
-from inference.cubature import CubatureKalman
+from inference.cubature import CubatureKalman, CUTKalman
 from system.datagen import ReentryRadar, ReentryRadarSimple
 from models.tracking import ReentryRadar as ReentryRadarModel
 from models.tracking import ReentryRadarSimple as ReentryRadarSimpleModel
@@ -146,9 +146,9 @@ def reentry_simple_gpq_demo(dur=30, tau=0.1, mc=100):
 
     # Initialize filters
     alg = (
-        GPQKalman(ssm, 'rbf', 'ut', hdyn_ut, hobs_ut),
-        # CubatureKalman(ssm),
         UnscentedKalman(ssm),
+        CUTKalman(ssm),
+        GPQKalman(ssm, 'rbf', 'ut', hdyn_ut, hobs_ut),
         GPQKalman(ssm, 'rbf', 'cut', hdyn_cut, hobs_cut),
     )
 
@@ -233,26 +233,23 @@ def reentry_simple_gpq_demo(dur=30, tau=0.1, mc=100):
     # PLOTS: Performance Scores
     plt.figure()
     g = GridSpec(6, 3)
-    filt_labels = ['GPQ-UT', 'UKF', 'GPQ-CUT']
+    filt_labels = ['UT', 'CUT', 'GPQ-UT', 'GPQ-CUT']
     plt.subplot(g[:2, :2])
     plt.ylabel('RMSE')
-    plt.plot(time_ind[1:], pos_rmse_vs_time[1:, 0], label=filt_labels[0], color='g')
-    plt.plot(time_ind[1:], pos_rmse_vs_time[1:, 1], label=filt_labels[1], color='r')
-    plt.plot(time_ind[1:], pos_rmse_vs_time[1:, 2], label=filt_labels[2], color='b')
+    for i in range(num_alg):
+        plt.plot(time_ind[1:], pos_rmse_vs_time[1:, i], label=filt_labels[i])
     plt.legend()
 
     plt.subplot(g[2:4, :2])
     plt.ylabel('RMSE')
-    plt.plot(time_ind[1:], vel_rmse_vs_time[1:, 0], label=filt_labels[0], color='g')
-    plt.plot(time_ind[1:], vel_rmse_vs_time[1:, 1], label=filt_labels[1], color='r')
-    plt.plot(time_ind[1:], vel_rmse_vs_time[1:, 2], label=filt_labels[2], color='b')
+    for i in range(num_alg):
+        plt.plot(time_ind[1:], vel_rmse_vs_time[1:, i], label=filt_labels[i])
 
     plt.subplot(g[4:, :2])
     plt.ylabel('RMSE')
     plt.xlabel('time step [k]')
-    plt.plot(time_ind[1:], theta_rmse_vs_time[1:, 0], label=filt_labels[0], color='g')
-    plt.plot(time_ind[1:], theta_rmse_vs_time[1:, 1], label=filt_labels[1], color='r')
-    plt.plot(time_ind[1:], theta_rmse_vs_time[1:, 2], label=filt_labels[2], color='b')
+    for i in range(num_alg):
+        plt.plot(time_ind[1:], theta_rmse_vs_time[1:, i], label=filt_labels[i])
 
     # Box plots of time-averaged scores
     plt.subplot(g[:2, 2:])
@@ -270,22 +267,19 @@ def reentry_simple_gpq_demo(dur=30, tau=0.1, mc=100):
 
     plt.subplot(g[:2, :2])
     plt.ylabel(r'$\nu$')
-    plt.plot(time_ind, pos_inc_vs_time[:, 0], label=filt_labels[0], color='g')
-    plt.plot(time_ind, pos_inc_vs_time[:, 1], label=filt_labels[1], color='r')
-    plt.plot(time_ind, pos_inc_vs_time[:, 2], label=filt_labels[2], color='b')
+    for i in range(num_alg):
+        plt.plot(time_ind, pos_inc_vs_time[:, i], label=filt_labels[i])
 
     plt.subplot(g[2:4, :2])
     plt.ylabel(r'$\nu$')
-    plt.plot(time_ind, vel_inc_vs_time[:, 0], label=filt_labels[0], color='g')
-    plt.plot(time_ind, vel_inc_vs_time[:, 1], label=filt_labels[1], color='r')
-    plt.plot(time_ind, vel_inc_vs_time[:, 2], label=filt_labels[2], color='b')
+    for i in range(num_alg):
+        plt.plot(time_ind, vel_inc_vs_time[:, i], label=filt_labels[i])
 
     plt.subplot(g[4:, :2])
     plt.ylabel(r'$\nu$')
     plt.xlabel('time step [k]')
-    plt.plot(time_ind, theta_inc_vs_time[:, 0], label=filt_labels[0], color='g')
-    plt.plot(time_ind, theta_inc_vs_time[:, 1], label=filt_labels[1], color='r')
-    plt.plot(time_ind, theta_inc_vs_time[:, 2], label=filt_labels[2], color='b')
+    for i in range(num_alg):
+        plt.plot(time_ind, theta_inc_vs_time[:, i], label=filt_labels[i])
 
     plt.subplot(g[:2, 2:])
     plt.boxplot(pos_lcr.mean(axis=0), labels=filt_labels)

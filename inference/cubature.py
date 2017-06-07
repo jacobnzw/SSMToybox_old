@@ -1,6 +1,17 @@
 from inference.ssinfer import StateSpaceInference
 from models.ssmodel import StateSpaceModel
-from transforms.quad import SphericalRadial, SphericalRadialTrunc
+from transforms.quad import SphericalRadial, SphericalRadialTrunc, ConjugateUnscented
+
+
+class CUTKalman(StateSpaceInference):
+
+    def __init__(self, sys):
+        assert isinstance(sys, StateSpaceModel)
+        nq = sys.xD if sys.q_additive else sys.xD + sys.qD
+        nr = sys.xD if sys.r_additive else sys.xD + sys.rD
+        tf = ConjugateUnscented(nq)
+        th = ConjugateUnscented(nr)
+        super(CUTKalman, self).__init__(sys, tf, th)
 
 
 class CubatureKalman(StateSpaceInference):
