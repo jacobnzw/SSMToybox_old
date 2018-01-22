@@ -112,7 +112,7 @@ def exp_x_kxkx_1(par_0, par_1, x):
     # R^{-1} = (\Lambda_m^{-1} + \Lambda_n^{-1} + \eye)^{-1}
     r = 0.5*la.inv(inv_lam) + np.eye(x.shape[0])  # (D, D)
 
-    n = 0.5*maha(x.T, x.T, V=inv_lam) + maha(x.T, -x.T, V=la.inv(r))  # (N, N)
+    n = 0.5*maha(x.T, x.T, V=inv_lam) + 0.25*maha(x.T, -x.T, V=la.inv(r))  # (N, N)
     # return la.det(r) ** -0.5 * np.exp(n)
     return n
 
