@@ -60,7 +60,7 @@ def exp_x_kxkx(par_0, par_1, x, scaling=False):
     # R^{-1} = (\Lambda_m^{-1} + \Lambda_n^{-1} + \eye)^{-1}
     r = inv_lam + inv_lam_1 + np.eye(x_0.shape[0])  # (D, D)
 
-    n = (xi[:, na] + xi_1[na, :]) + maha(x_0.T, -x_1.T, V=la.inv(r))  # (N, N)
+    n = (xi[:, na] + xi_1[na, :]) - maha(x_0.T, -x_1.T, V=la.inv(r))  # (N, N)
     # return la.det(r) ** -0.5 * np.exp(n)
     return n
 
@@ -135,9 +135,11 @@ def test_exp(par_0, par_1, x):
 
 
 # random points
-dim, num_pts = 2, 3
+dim, num_pts = 1, 3
 # x = np.random.rand(dim, num_pts)
-x = Unscented.unit_sigma_points(dim)
+x = (1/np.sqrt(3))*Unscented.unit_sigma_points(dim)
+
+# x = np.array([[0, 1]])
 
 # kernel parameters
 par = np.array([[1] + dim*[1]])
@@ -154,3 +156,4 @@ print(Q0)
 print('Symmetric: {}'.format(np.allclose(Q0, Q0.T)))
 print(Q1)
 print('Symmetric: {}'.format(np.allclose(Q1, Q1.T)))
+print('Equal {}'.format(np.allclose(Q0, Q1)))
