@@ -1,11 +1,9 @@
 from utils import *
-import numpy.linalg as la
 # from paper_code.journal_figure import *
 import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
 from inference.gpquad import GPQKalman
 from inference.unscented import UnscentedKalman
-from inference.cubature import CubatureKalman, CUTKalman
 from system.datagen import ReentryRadar, ReentryRadarSimple
 from models.tracking import ReentryRadar as ReentryRadarModel
 from models.tracking import ReentryRadarSimple as ReentryRadarSimpleModel
@@ -104,6 +102,7 @@ def reentry_gpq_demo():
 
 def reentry_simple_gpq_demo(dur=30, tau=0.1, mc=100):
     """
+    A spherical object falls down from high altitude entering the Earth’s atmosphere with a high velocity.
 
     Parameters
     ----------
@@ -138,18 +137,14 @@ def reentry_simple_gpq_demo(dur=30, tau=0.1, mc=100):
     # GPQKF kernel parameters
     hdyn_ut = {'alpha': 0.5, 'el': [10, 10, 10]}
     hobs_ut = {'alpha': 0.5, 'el': [15, 20, 20]}
-    hdyn_cut = {'alpha': 5.0, 'el': [1e2, 3, 1e2]}
-    hobs_cut = {'alpha': 0.0, 'el': [3, 20, 20]}
 
     # Initialize model
     ssm = ReentryRadarSimpleModel(dt=tau)
 
     # Initialize filters
     alg = (
-        UnscentedKalman(ssm),
-        CUTKalman(ssm),
         GPQKalman(ssm, 'rbf', 'ut', hdyn_ut, hobs_ut),
-        GPQKalman(ssm, 'rbf', 'cut', hdyn_cut, hobs_cut),
+        UnscentedKalman(ssm),
     )
 
     num_alg = len(alg)
@@ -230,10 +225,11 @@ def reentry_simple_gpq_demo(dur=30, tau=0.1, mc=100):
     theta_rmse_vs_time = theta_rmse.mean(axis=1)
     theta_inc_vs_time = theta_lcr.mean(axis=1)
 
-    # PLOTS: Performance Scores
+    # PLOTS: RMSE in time for position, velocity and ballistic parameter
     plt.figure()
     g = GridSpec(6, 3)
-    filt_labels = ['UT', 'CUT', 'GPQ-UT', 'GPQ-CUT']
+    # filt_labels = ['UT', 'CUT', 'GPQ-UT', 'GPQ-CUT']
+    filt_labels = ['GPQKF', 'UKF']
     plt.subplot(g[:2, :2])
     plt.ylabel('RMSE')
     for i in range(num_alg):
@@ -251,7 +247,7 @@ def reentry_simple_gpq_demo(dur=30, tau=0.1, mc=100):
     for i in range(num_alg):
         plt.plot(time_ind[1:], theta_rmse_vs_time[1:, i], label=filt_labels[i])
 
-    # Box plots of time-averaged scores
+    # BOX PLOTS: time-averaged RMSE
     plt.subplot(g[:2, 2:])
     plt.boxplot(pos_rmse.mean(axis=0), labels=filt_labels)
 
@@ -262,6 +258,7 @@ def reentry_simple_gpq_demo(dur=30, tau=0.1, mc=100):
     plt.boxplot(theta_rmse.mean(axis=0), labels=filt_labels)
     plt.show()
 
+    # PLOTS: Inclination indicator in time for position, velocity and ballistic parameter
     plt.figure()
     g = GridSpec(6, 3)
 
@@ -281,6 +278,7 @@ def reentry_simple_gpq_demo(dur=30, tau=0.1, mc=100):
     for i in range(num_alg):
         plt.plot(time_ind, theta_inc_vs_time[:, i], label=filt_labels[i])
 
+    # BOX PLOTS: time-averaged inclination indicator
     plt.subplot(g[:2, 2:])
     plt.boxplot(pos_lcr.mean(axis=0), labels=filt_labels)
 
@@ -293,8 +291,6 @@ def reentry_simple_gpq_demo(dur=30, tau=0.1, mc=100):
 
     # TODO: pandas tables for printing into latex
     np.set_printoptions(precision=4)
-    print('Dynamics CUT params: {}'.format(hdyn_cut))
-    print('Observation CUT params: {}'.format(hobs_cut))
     print('Average RMSE: {}'.format(np.sqrt(error2.sum(axis=0)).mean(axis=(0, 1))))
 
 
@@ -540,12 +536,13 @@ def reentry_simple_trajectory_plot(data_scores):
     fig.tight_layout(pad=0)
     printfig.savefig('reentry_pos_vel')
 
+
 if __name__ == '__main__':
     import pickle
     # # get simulation results
     print('Running simulations ...')
     # data_dict = reentry_simple_data(mc=100)
-    reentry_simple_gpq_demo(mc=50, dur=30)
+    reentry_simple_gpq_demo(mc=100, dur=30)
     #
     # # dump simulated data for fast re-plotting
     # print('Pickling data ...')
